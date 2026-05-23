@@ -13,7 +13,7 @@ Fleet is managed as a Nix flake and deployed with Colmena, so changes should alw
 - Do not document or prefer one-shot deployment commands such as `nix develop -c colmena ...`; they are harder to standardise and troubleshoot.
 - `nix flake check` ensures all modules evaluate and option contracts stay valid.
 - `colmena build --on <host>` builds a single host without switching it.
-- `colmena apply --on <host> --dry-run switch` validates a single host activation without touching state.
+- `colmena apply --on <host> dry-activate` validates a single host activation plan without switching state.
 - `colmena apply --on <host> switch` is the standard deployment command; for example, `colmena apply --on media-vm switch`.
 - Use `colmena apply --on @<tag> switch` only when intentionally deploying a host group defined in `hosts.nix`, and use `colmena apply switch` only when intentionally deploying the whole fleet.
 
@@ -25,7 +25,9 @@ Fleet is managed as a Nix flake and deployed with Colmena, so changes should alw
 
 ## Testing Guidelines
 - Extend or adjust modules under `modules/` and rerun `nix flake check` before review.
-- For behavioural changes, exercise `colmena apply --on <host> --dry-run switch` to confirm activations succeed.
+- For behavioural changes, exercise `colmena apply --on <host> dry-activate` to confirm activations succeed.
+- For `media-vm` changes touching the media stack, SMB mounts, SOPS secrets, or Restic, deploy with `colmena apply --on media-vm switch` and run `scripts/test-media-backup.sh` from the development shell. This starts `appsdata-backup.service`, runs `appsdata-restore-check.service`, verifies `appsdata-backup.timer`, and lists the latest tagged snapshots.
+- Keep `README.md` and the generated `/etc/fleet/media-vm.md` recovery notes in sync when backup or restore procedures change.
 - Capture any manual verification (e.g. Grafana reachable on port 3000) in the pull request notes so reviewers can mirror the checks.
 
 ## Commit & Pull Request Guidelines

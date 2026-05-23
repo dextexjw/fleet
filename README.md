@@ -25,7 +25,7 @@ The reverse proxy on the gateway-vm server routes traffic to services running on
 - `modules/media/stack.nix` defines the `media-vm` media stack.
 - `secrets/secrets.yaml` is the real SOPS-encrypted secrets file.
 - `secrets/example-secrets.yaml` documents the expected secrets shape.
-- `scripts/` contains maintenance helpers, but the documented deployment workflow uses direct Colmena commands.
+- `scripts/` contains maintenance helpers, including `scripts/test-media-backup.sh` for repeatable `media-vm` backup and restore validation. The documented deployment workflow still uses direct Colmena commands from the development shell.
 
 ## Getting started
 
@@ -90,6 +90,12 @@ Build without deploying:
 
 ```sh
 colmena build --on servername
+```
+
+Preview activation without switching state:
+
+```sh
+colmena apply --on servername dry-activate
 ```
 
 For `media-vm`, use `colmena apply --on media-vm switch`.
@@ -178,6 +184,8 @@ Put the real values in `secrets/secrets.yaml`, then encrypt it with SOPS before 
 - `restic-password`
 - `qbittorrent-webui-username`
 - `qbittorrent-webui-password`
+
+Use a long random value for `restic-password`; it is the encryption key for the Restic repository and must be preserved with the repository history. If the Restic repository already exists and the password changes, Restic cannot read old snapshots with the new password.
 
 The committed `secrets/secrets.yaml` is an encrypted placeholder until you replace it with your real encrypted values. Keep it encrypted before committing.
 
@@ -303,7 +311,12 @@ colmena build --on media-vm
 
 ```sh
 colmena apply --on media-vm switch
-colmena apply --on media-vm --build-on-target switch
+```
+
+8. Validate backup and restore:
+
+```sh
+scripts/test-media-backup.sh
 ```
 
 ## media-vm day-2 deploy flow
@@ -319,12 +332,19 @@ Validate and build only `media-vm`:
 ```sh
 nix flake check
 colmena build --on media-vm
+colmena apply --on media-vm dry-activate
 ```
 
 Deploy only `media-vm`:
 
 ```sh
 colmena apply --on media-vm switch
+```
+
+For changes touching the media stack, SMB mounts, SOPS secrets, or Restic, run the repeatable backup and restore validation after deployment:
+
+```sh
+scripts/test-media-backup.sh
 ```
 
 Use the broader Colmena targets only when you mean to deploy more than one host:
@@ -391,28 +411,51 @@ Backups are handled by `appsdata-backup.service` and `appsdata-backup.timer`.
 - Password file: `/run/secrets/restic-password`
 - Schedule: daily
 - Retention: 7 daily, 4 weekly, 6 monthly snapshots
+- Restic host: `media-vm`
+- Restic tag: `appsdata`
+- Restore validation unit: `appsdata-restore-check.service`
 
-Run a manual backup:
+Run the repeatable post-deploy validation from the development shell:
+
+```sh
+scripts/test-media-backup.sh
+```
+
+The script mounts `/mnt/backups` if needed, starts `appsdata-backup.service`, starts the non-destructive restore check, verifies the backup timer is active, and lists the latest tagged snapshots.
+
+If Restic reports `wrong password or no key found`, the repository was initialized with a different password than `/run/secrets/restic-password`. Do not delete that repository. Preserve it under a dated name, fix the SOPS `restic-password`, deploy, and let `appsdata-backup.service` initialize a clean repository at the documented path.
+
+Run a manual backup on `media-vm`:
 
 ```sh
 systemctl start appsdata-backup.service
 ```
 
-Inspect backups:
+Inspect backups on `media-vm`:
 
 ```sh
 systemctl status appsdata-backup.timer
 journalctl -u appsdata-backup.service
 RESTIC_REPOSITORY=/mnt/backups/restic/appdata/media-stack-vm \
   RESTIC_PASSWORD_FILE=/run/secrets/restic-password \
-  restic snapshots
+  restic snapshots --host media-vm --path /srv/appsdata --tag appsdata
+```
+
+Run the non-destructive restore validation on `media-vm`:
+
+```sh
+systemctl start appsdata-restore-check.service
+journalctl -u appsdata-restore-check.service
 ```
 
 ## Restore /srv/appsdata
 
-1. Stop the media services:
+This is the destructive full restore procedure. Use `appsdata-restore-check.service` for routine validation because it restores into `/var/tmp/appsdata-restore-check` and does not overwrite `/srv/appsdata`.
+
+1. Stop the backup timer and media services:
 
 ```sh
+systemctl stop appsdata-backup.timer
 systemctl stop jellyfin radarr sonarr prowlarr bazarr qbittorrent sabnzbd jellyseerr flaresolverr
 ```
 
@@ -422,19 +465,34 @@ systemctl stop jellyfin radarr sonarr prowlarr bazarr qbittorrent sabnzbd jellys
 mount /mnt/backups
 ```
 
-3. Restore the latest snapshot:
+3. Confirm the target snapshot exists:
 
 ```sh
 RESTIC_REPOSITORY=/mnt/backups/restic/appdata/media-stack-vm \
   RESTIC_PASSWORD_FILE=/run/secrets/restic-password \
-  restic restore latest --target /
+  restic snapshots --host media-vm --path /srv/appsdata --tag appsdata
 ```
 
-4. Reapply ownership from the NixOS config:
+4. Restore the latest tagged snapshot:
+
+```sh
+RESTIC_REPOSITORY=/mnt/backups/restic/appdata/media-stack-vm \
+  RESTIC_PASSWORD_FILE=/run/secrets/restic-password \
+  restic restore latest \
+    --host media-vm \
+    --path /srv/appsdata \
+    --tag appsdata \
+    --target / \
+    --verify
+```
+
+5. Reapply declared directories, restart services, and validate:
 
 ```sh
 systemd-tmpfiles --create
 systemctl start jellyfin radarr sonarr prowlarr bazarr qbittorrent sabnzbd jellyseerr flaresolverr
+systemctl start appsdata-backup.timer
+systemctl start appsdata-restore-check.service
 ```
 
 ## Roll back a NixOS deployment

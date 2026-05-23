@@ -85,10 +85,31 @@
   # ============================================================================
 
   environment.systemPackages = with pkgs; [
-    neovim
+    bat
+    btop
+    curl
+    eza
+    fd
+    fzf
     git
+    iperf3
+    jq
+    just
+    lazygit
+    mosh
+    mtr
+    ncdu
+    neovim
+    ripgrep
+    rsync
+    tmux
     wget
+    yq
+    zellij
   ];
+
+  programs.direnv.enable = true;
+  programs.zoxide.enable = true;
 
   # ============================================================================
   # LOCALIZATION & TIMEZONE

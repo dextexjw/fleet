@@ -25,7 +25,7 @@ The reverse proxy on the gateway-vm server routes traffic to services running on
 - `modules/media/stack.nix` defines the `media-vm` media stack.
 - `secrets/secrets.yaml` is the real SOPS-encrypted secrets file.
 - `secrets/example-secrets.yaml` documents the expected secrets shape.
-- `scripts/` contains safe helper scripts for checking, bootstrapping, and deploying `media-vm`.
+- `scripts/` contains maintenance helpers, but the documented deployment workflow uses direct Colmena commands.
 
 ## Getting started
 
@@ -39,7 +39,16 @@ Edit `hosts.nix` and put your servers in there. Change the IPs and usernames to 
 
 Each server gets its own directory under `hosts/`. Copy one of the existing ones and modify it. The `hardware-configuration.nix` file comes from running `nixos-generate-config` on the target machine (or just scp'ing it from /etc/nixos/hardware-configuration.nix from the target).
 
-Once you have that sorted, run `nix develop` to get into the development shell, then `colmena apply` to deploy everything.
+Once you have that sorted, run `nix develop` to get into the development shell, then use the Colmena commands below.
+
+### Deployment record
+
+- **media-vm deployed**: `media-vm` at `10.2.20.113` successfully deployed using:
+
+```
+nix develop
+colmena apply --on media-vm switch
+```
 
 ## Development shell
 
@@ -83,7 +92,7 @@ Build without deploying:
 colmena build
 ```
 
-For `media-vm`, use the specific commands in the media runbook below.
+For `media-vm`, use `colmena apply --on media-vm switch`.
 
 ## media-vm host values
 
@@ -278,7 +287,8 @@ nix develop
 4. Validate the local config:
 
 ```sh
-scripts/bootstrap-media.sh
+nix flake check
+colmena build --on media-vm
 ```
 
 5. Install NixOS on the VM using your preferred installer flow.
@@ -288,7 +298,7 @@ scripts/bootstrap-media.sh
 7. Deploy `media-vm`:
 
 ```sh
-scripts/deploy-media.sh
+colmena apply --on media-vm switch
 ```
 
 ## media-vm day-2 deploy flow
@@ -302,22 +312,21 @@ nix develop
 Validate and build only `media-vm`:
 
 ```sh
-scripts/check.sh
+nix flake check
+colmena build --on media-vm
 ```
 
 Deploy only `media-vm`:
 
 ```sh
-scripts/deploy-media.sh
+colmena apply --on media-vm switch
 ```
 
-Equivalent Colmena commands:
+Use the broader Colmena targets only when you mean to deploy more than one host:
 
 ```sh
-colmena apply
-colmena apply --on media-vm
-colmena apply --on @media
-colmena build --on media-vm
+colmena apply --on @media switch
+colmena apply switch
 ```
 
 ## media-vm service status

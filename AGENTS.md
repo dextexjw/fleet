@@ -9,10 +9,13 @@ Fleet is managed as a Nix flake and deployed with Colmena, so changes should alw
 - Keep assets such as TLS material inside the relevant module options (`fleet.security.*`) rather than committing secrets.
 
 ## Build, Test, and Development Commands
-- `nix develop` brings up the shell with Colmena installed; run it before modifying modules.
+- Use one deployment workflow: enter the dev shell with `nix develop`, then run plain `colmena` commands from that shell.
+- Do not document or prefer one-shot deployment commands such as `nix develop -c colmena ...`; they are harder to standardise and troubleshoot.
 - `nix flake check` ensures all modules evaluate and option contracts stay valid.
-- `colmena apply --on gateway-vm --dry-run switch` validates the `gateway-vm` host without touching state; drop `--dry-run` to deploy.
-- `colmena apply --on media-vm switch` publishes Git services; prefer tagging multiple hosts via the `hosts.nix` tags when coordinating changes.
+- `colmena build --on <host>` builds a single host without switching it.
+- `colmena apply --on <host> --dry-run switch` validates a single host activation without touching state.
+- `colmena apply --on <host> switch` is the standard deployment command; for example, `colmena apply --on media-vm switch`.
+- Use `colmena apply --on @<tag> switch` only when intentionally deploying a host group defined in `hosts.nix`, and use `colmena apply switch` only when intentionally deploying the whole fleet.
 
 ## Coding Style & Naming Conventions
 - Use two-space indentation and keep attribute sets alphabetised where practical.

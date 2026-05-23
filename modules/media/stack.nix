@@ -193,6 +193,12 @@ in
 
     users.groups.media = { };
 
+    users.users.media = {
+      isSystemUser = true;
+      group = "media";
+      home = appdata;
+    };
+
     users.users.jellyseerr = {
       isSystemUser = true;
       group = "media";

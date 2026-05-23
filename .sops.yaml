@@ -1,4 +1,4 @@
 creation_rules:
   - path_regex: secrets/secrets\.yaml$
     encrypted_regex: "^(admin-password-hash|restic-password|smb-credentials|qbittorrent-webui-username|qbittorrent-webui-password)$"
-    age: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIATd/kn93HeAqaT5e8uW68n/JoWBesQkyruVNLsG3NDc khalid,age1wde8ltda90rnp0acf797jac3hz2aackyrlyvfm4k3hmv6em4p35stdhu7p"
+    age: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIATd/kn93HeAqaT5e8uW68n/JoWBesQkyruVNLsG3NDc khalid,age1s5d7uhp0cqnr99tqffz9lyusd639kv35jpyx4cpf9xypr7yxcvas7kz00m"

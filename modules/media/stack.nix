@@ -368,6 +368,8 @@ in
       radarr.after = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
       sonarr.requires = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
       sonarr.after = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
+      prowlarr.requires = [ "${utils.escapeSystemdPath "/var/lib/private/prowlarr"}.mount" ];
+      prowlarr.after = [ "${utils.escapeSystemdPath "/var/lib/private/prowlarr"}.mount" ];
       bazarr.requires = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
       bazarr.after = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
       qbittorrent.requires = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];

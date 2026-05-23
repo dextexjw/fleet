@@ -6,6 +6,7 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     colmena.url = "github:zhaofengli/colmena";
+    sops-nix.url = "github:Mic92/sops-nix";
   };
 
   # ============================================================================
@@ -13,7 +14,12 @@
   # ============================================================================
 
   outputs =
-    { nixpkgs, colmena, ... }:
+    {
+      nixpkgs,
+      colmena,
+      sops-nix,
+      ...
+    }:
     let
       # Import host definitions from single source of truth
       hosts = import ./hosts.nix;
@@ -34,9 +40,18 @@
       # DEVELOPMENT SHELL - Local development environment
       # ==========================================================================
 
-      devShells.x86_64-linux.default = nixpkgs.legacyPackages.x86_64-linux.mkShell {
-        buildInputs = [ colmena.packages.x86_64-linux.colmena ];
-      };
+      devShells.x86_64-linux.default =
+        let
+          pkgs = nixpkgs.legacyPackages.x86_64-linux;
+        in
+        pkgs.mkShell {
+          buildInputs = [
+            colmena.packages.x86_64-linux.colmena
+            pkgs.age
+            pkgs.restic
+            pkgs.sops
+          ];
+        };
 
       # ==========================================================================
       # COLMENA HIVE - Fleet deployment configuration
@@ -78,6 +93,7 @@
           };
 
           imports = [
+            sops-nix.nixosModules.sops
             ./hosts/media-vm/configuration.nix
           ];
         };

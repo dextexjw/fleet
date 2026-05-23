@@ -1,7 +1,15 @@
-{ config, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
   hosts = import ../../hosts.nix;
+  host = hosts.media-vm;
+  secretsFile = ../../secrets/secrets.yaml;
+  secretsEnabled = builtins.pathExists secretsFile;
 in
 
 {
@@ -12,7 +20,7 @@ in
   imports = [
     ../common.nix
     ./hardware-configuration.nix
-    ../../modules/dev/gitea.nix
+    ../../modules/media/stack.nix
   ];
 
   # ============================================================================
@@ -20,35 +28,81 @@ in
   # ============================================================================
 
   networking.hostName = "media-vm";
-  users.motd = "You've found your way to the MEDIA-VM server";
+  networking.domain = host.domain;
+  users.motd = "media-vm: Jellyfin, ARR stack, downloads, and appdata backups";
+
+  # ============================================================================
+  # SECRETS
+  # ============================================================================
+
+  sops = lib.mkIf secretsEnabled {
+    defaultSopsFile = secretsFile;
+    age.sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
+    secrets = {
+      admin-password-hash = {
+        neededForUsers = true;
+      };
+      qbittorrent-webui-password = { };
+      qbittorrent-webui-username = { };
+      restic-password = { };
+      smb-credentials = { };
+    };
+  };
+
+  # ============================================================================
+  # USER MANAGEMENT
+  # ============================================================================
+
+  users.users.${host.user}.hashedPasswordFile =
+    lib.mkIf secretsEnabled config.sops.secrets.admin-password-hash.path;
 
   # ============================================================================
   # SERVICES
   # ============================================================================
 
-  fleet.dev.gitea = {
+  fleet.media.stack = {
     enable = true;
-    domain = hosts.media-vm.ip;
-    appName = "Fleet Git Repository";
+    secrets.enable = secretsEnabled;
+    smb = {
+      backupDevice = "//10.2.20.10/backups";
+      mediaDevice = "//nas.home.arpa/media";
+    };
   };
 
   # ============================================================================
   # NETWORKING & FIREWALL
   # ============================================================================
 
-  networking.firewall.allowedTCPPorts = [];
+  networking.networkmanager.enable = lib.mkForce false;
+  networking.useDHCP = lib.mkForce false;
+  systemd.network = {
+    enable = true;
+    networks."10-lan" = {
+      matchConfig.Name = [
+        "en*"
+        "eth*"
+      ];
+      networkConfig = {
+        Address = "${host.ip}/24";
+        DNS = host.nameservers;
+        Domains = host.domain;
+        Gateway = host.gateway;
+      };
+    };
+  };
 
   # ============================================================================
   # BOOTLOADER
   # ============================================================================
 
   boot.loader.grub.enable = true;
-  boot.loader.grub.device = "/dev/vda";
+  boot.loader.grub.device = host.vm.disk;
   boot.loader.grub.useOSProber = true;
 
   # ============================================================================
   # SYSTEM
   # ============================================================================
 
+  time.timeZone = host.timezone;
   system.stateVersion = "25.05";
 }

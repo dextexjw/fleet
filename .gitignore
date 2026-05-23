@@ -1,1 +1,16 @@
 .direnv/
+result
+result-*
+*.qcow2
+*.iso
+*.log
+
+# Keep local secret material out of history. Commit secrets/secrets.yaml only
+# after it is encrypted with sops.
+secrets/*.agekey
+secrets/*.key
+secrets/*.pem
+secrets/*.unencrypted.yaml
+secrets/*.plaintext.yaml
+secrets/*.dec.yaml
+secrets/secrets.yaml

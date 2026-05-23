@@ -22,6 +22,13 @@ let
       config.sops.secrets.restic-password.path
     else
       "/run/secrets/restic-password";
+  systemdMountOptions = filter (
+    option:
+    option != "_netdev"
+    && option != "noauto"
+    && option != "nofail"
+    && !(hasPrefix "x-systemd." option)
+  ) cfg.smb.mountOptions;
 
   appsdataDirs = [
     "${appdata}"
@@ -116,6 +123,12 @@ in
       description = "Web UI ports for exposed media services.";
     };
 
+    jellyfin.publishedServerUrl = mkOption {
+      type = types.nullOr types.str;
+      default = null;
+      description = "Optional URL Jellyfin advertises to clients during auto-discovery.";
+    };
+
     smb = {
       mediaDevice = mkOption {
         type = types.str;
@@ -176,6 +189,8 @@ in
     # USERS, GROUPS, AND DIRECTORIES
     # --------------------------------------------------------------------------
 
+    boot.supportedFilesystems.cifs = true;
+
     users.groups.media = { };
 
     users.users.media = {
@@ -196,31 +211,67 @@ in
     # SMB MOUNTS
     # --------------------------------------------------------------------------
 
-    fileSystems.${mediaRoot} = {
-      device = cfg.smb.mediaDevice;
-      fsType = "cifs";
-      options = cfg.smb.mountOptions ++ [
-        "credentials=${smbCredentialsFile}"
-        "dir_mode=0775"
-        "file_mode=0664"
-        "forcegid"
-        "forceuid"
-        "gid=media"
-        "uid=media"
-      ];
-    };
+    systemd.automounts = [
+      {
+        where = toString cfg.smb.backupMount;
+        wantedBy = [ "multi-user.target" ];
+        automountConfig.TimeoutIdleSec = "60s";
+      }
+      {
+        where = toString mediaRoot;
+        wantedBy = [ "multi-user.target" ];
+        automountConfig.TimeoutIdleSec = "60s";
+      }
+    ];
 
-    fileSystems.${cfg.smb.backupMount} = {
-      device = cfg.smb.backupDevice;
-      fsType = "cifs";
-      options = cfg.smb.mountOptions ++ [
-        "credentials=${smbCredentialsFile}"
-        "dir_mode=0750"
-        "file_mode=0640"
-        "forcegid"
-        "gid=media"
-      ];
-    };
+    systemd.mounts = [
+      {
+        description = "Backup SMB share";
+        what = cfg.smb.backupDevice;
+        where = toString cfg.smb.backupMount;
+        type = "cifs";
+        options = concatStringsSep "," (
+          systemdMountOptions
+          ++ [
+            "credentials=${smbCredentialsFile}"
+            "dir_mode=0750"
+            "file_mode=0640"
+            "forcegid"
+            "gid=media"
+          ]
+        );
+        after = [ "network-online.target" ];
+        before = [ "umount.target" ];
+        conflicts = [ "umount.target" ];
+        requires = [ "network-online.target" ];
+        unitConfig.DefaultDependencies = false;
+        mountConfig.TimeoutSec = "30s";
+      }
+      {
+        description = "Media SMB share";
+        what = cfg.smb.mediaDevice;
+        where = toString mediaRoot;
+        type = "cifs";
+        options = concatStringsSep "," (
+          systemdMountOptions
+          ++ [
+            "credentials=${smbCredentialsFile}"
+            "dir_mode=0775"
+            "file_mode=0664"
+            "forcegid"
+            "forceuid"
+            "gid=media"
+            "uid=media"
+          ]
+        );
+        after = [ "network-online.target" ];
+        before = [ "umount.target" ];
+        conflicts = [ "umount.target" ];
+        requires = [ "network-online.target" ];
+        unitConfig.DefaultDependencies = false;
+        mountConfig.TimeoutSec = "30s";
+      }
+    ];
 
     # --------------------------------------------------------------------------
     # MEDIA SERVICES
@@ -310,6 +361,9 @@ in
     systemd.services = {
       jellyfin.requires = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
       jellyfin.after = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
+      jellyfin.environment = mkIf (cfg.jellyfin.publishedServerUrl != null) {
+        JELLYFIN_PublishedServerUrl = cfg.jellyfin.publishedServerUrl;
+      };
       radarr.requires = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
       radarr.after = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
       sonarr.requires = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];

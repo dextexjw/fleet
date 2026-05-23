@@ -67,6 +67,7 @@ in
 
   fleet.media.stack = {
     enable = true;
+    jellyfin.publishedServerUrl = "http://${host.ip}:8096";
     secrets.enable = secretsEnabled;
     smb = {
       backupDevice = "//nas.home.arpa/backups";

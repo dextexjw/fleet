@@ -13,4 +13,3 @@ secrets/*.pem
 secrets/*.unencrypted.yaml
 secrets/*.plaintext.yaml
 secrets/*.dec.yaml
-secrets/secrets.yaml

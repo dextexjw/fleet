@@ -4,6 +4,29 @@ This is a starter template for a setup similar to how I manage my own home serve
 
 You can use this as a starting point for your own setup.
 
+## Overview
+
+Fleet is a NixOS homelab managed with a Nix flake and deployed with Colmena. The current focus is `media-vm`, a NixOS host for Jellyfin, the ARR stack, download clients, appdata backups, and supporting services.
+
+The `modules/` directory contains reusable pieces for different services. Want to run Prometheus? Import the module and set `fleet.monitoring.prometheus.enable = true`. Same pattern for everything else.
+
+All the servers import `hosts/common.nix` which sets up SSH keys, basic security, and monitoring. Individual servers add whatever services they need on top of that.
+
+The reverse proxy on the gateway-vm server routes traffic to services running on different machines. Self-signed certificates handle TLS so you don't get browser warnings.
+
+## Repository layout
+
+- `flake.nix` defines inputs, the development shell, and the Colmena hive.
+- `hosts.nix` is the inventory for host IPs, users, tags, and media-vm constants.
+- `hosts/<name>/configuration.nix` contains per-host NixOS configuration.
+- `hosts/<name>/hardware-configuration.nix` comes from the target host.
+- `hosts/common.nix` provides shared defaults.
+- `modules/` contains reusable service modules under the `fleet.*` namespace.
+- `modules/media/stack.nix` defines the `media-vm` media stack.
+- `secrets/secrets.yaml` is the real SOPS-encrypted secrets file.
+- `secrets/example-secrets.yaml` documents the expected secrets shape.
+- `scripts/` contains safe helper scripts for checking, bootstrapping, and deploying `media-vm`.
+
 ## Getting started
 
 You need Nix installed on your machine first. If you don't have it, grab it from nixos.org or use the https://determinate.systems/ installer (has some QoL improvements).
@@ -18,29 +41,257 @@ Each server gets its own directory under `hosts/`. Copy one of the existing ones
 
 Once you have that sorted, run `nix develop` to get into the development shell, then `colmena apply` to deploy everything.
 
-## How it works
+## Development shell
 
-The `modules/` directory contains reusable pieces for different services. Want to run Prometheus? Import the module and set `fleet.monitoring.prometheus.enable = true`. Same pattern for everything else.
+Enter the development shell before running Colmena, SOPS, or helper scripts:
 
-All the servers import `hosts/common.nix` which sets up SSH keys, basic security, and monitoring. Individual servers add whatever services they need on top of that.
+```sh
+nix develop
+```
 
-The reverse proxy on the gateway-vm server routes traffic to services running on different machines. Self-signed certificates handle TLS so you don't get browser warnings.
+The shell includes Colmena plus tools used by this repo such as `sops`, `age`, and `restic`.
 
-## Commands
+## General Colmena commands
 
-Deploy everything: `colmena apply`
+Deploy everything:
 
-Deploy one server: `colmena apply --on servername`
+```sh
+colmena apply
+```
 
-Deploy servers with a tag: `colmena apply --on @web`
+Deploy one server:
 
-Run commands on servers: `colmena exec --on servername -- systemctl status nginx`
+```sh
+colmena apply --on servername
+```
 
-Build without deploying: `colmena build`
+Deploy servers with a tag:
 
-## media-vm runbook
+```sh
+colmena apply --on @web
+```
 
-### 7. Deploy future changes with Colmena
+Run commands on servers:
+
+```sh
+colmena exec --on servername -- systemctl status nginx
+```
+
+Build without deploying:
+
+```sh
+colmena build
+```
+
+For `media-vm`, use the specific commands in the media runbook below.
+
+## media-vm host values
+
+These values are already represented in `hosts.nix` and `hosts/media-vm/configuration.nix`:
+
+- Hostname: `media-vm`
+- Domain: `home.arpa`
+- FQDN: `media.home.arpa`
+- IP address: `10.2.20.113`
+- Gateway: `10.2.20.1`
+- DNS servers: `10.2.20.1`, `1.1.1.1`
+- Time zone: `America/New_York`
+- System architecture: `x86_64-linux`
+- Admin username: `smoke`
+- Admin SSH public key: `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIATd/kn93HeAqaT5e8uW68n/JoWBesQkyruVNLsG3NDc khalid`
+- VM ID: `113`
+- VM name: `media-vm`
+- VM disk: `/dev/sda`
+- VM RAM: `12 GB`
+- VM CPU cores: `4`
+- Media SMB device: `//nas.home.arpa/media`
+- Media mount: `/mnt/media`
+- Backup SMB device: `//10.2.20.10/backups`
+- Backup mount: `/mnt/backups`
+
+## media-vm services
+
+`media-vm` runs:
+
+- Jellyfin
+- Radarr
+- Sonarr
+- Prowlarr
+- Bazarr
+- qBittorrent
+- SABnzbd
+- Jellyseerr
+- FlareSolverr
+- Prometheus node exporter
+
+## media-vm storage model
+
+`/srv/appsdata` is the single folder to back up for media-stack application recovery. It holds Jellyfin, Radarr, Sonarr, Prowlarr, Bazarr, qBittorrent, SABnzbd, Jellyseerr, FlareSolverr placeholder state, and monitoring backup state.
+
+Media files under `/mnt/media` are mounted from SMB and are not included in `appsdata-backup.service`. Back up the NAS media share separately if you want movie, TV, book, podcast, audiobook, comic, or PDF files protected.
+
+Appdata paths:
+
+- Jellyfin: `/srv/appsdata/jellyfin`
+- Radarr: `/srv/appsdata/radarr`
+- Sonarr: `/srv/appsdata/sonarr`
+- Prowlarr: `/srv/appsdata/prowlarr`
+- Bazarr: `/srv/appsdata/bazarr`
+- qBittorrent: `/srv/appsdata/qbittorrent`
+- SABnzbd: `/srv/appsdata/sabnzbd`
+- Jellyseerr: `/srv/appsdata/jellyseerr`
+- FlareSolverr: `/srv/appsdata/flaresolverr`
+- Monitoring: `/srv/appsdata/monitoring`
+
+Media paths:
+
+- Movies library 1: `/mnt/media/MOVIES`
+- Movies library 2 / new movies: `/mnt/media/NewMovies`
+- TV library: `/mnt/media/TVshows`
+- Kids movies: `/mnt/media/KidsMedia/KidsMovies`
+- Kids TV shows: `/mnt/media/KidsMedia/KidsTVshows`
+- Audiobooks: `/mnt/media/Audiobooks`
+- Podcasts: `/mnt/media/Podcasts`
+- Ebooks and Calibre library: `/mnt/media/Books`
+- Comics: `/mnt/media/Comics`
+- PDFs: `/mnt/media/PDFs`
+- Downloads root: `/mnt/media/downloads`
+- Completed torrent downloads: `/mnt/media/downloads/downloads`
+- Completed Usenet downloads: `/mnt/media/downloads/downloads`
+- Incomplete downloads: `/mnt/media/downloads/in-progress`
+
+## media-vm first-run secrets
+
+Put the real values in `secrets/secrets.yaml`, then encrypt it with SOPS before deploying:
+
+- `admin-password-hash`
+- `smb-credentials`
+- `restic-password`
+- optional `qbittorrent-webui-password`
+
+The committed `secrets/secrets.yaml` is an encrypted placeholder until you replace it with your real encrypted values. Keep it encrypted before committing.
+
+Important: sops-nix decrypts secrets on `media-vm` using the key paths configured in `hosts/media-vm/configuration.nix`. The current host config uses `/etc/ssh/ssh_host_ed25519_key`, so `.sops.yaml` must include a recipient that the `media-vm` host can decrypt with before deployment. If `.sops.yaml` only contains your personal/admin SSH public key, you can edit secrets locally but the host will not be able to decrypt them during activation.
+
+To capture the `media-vm` host public key after the VM exists:
+
+```sh
+ssh-keyscan -t ed25519 10.2.20.113 2>/dev/null | awk '{print $2 " " $3}'
+```
+
+Add that `ssh-ed25519 ...` recipient to `.sops.yaml`, then rekey `secrets/secrets.yaml`.
+
+Note: `qbittorrent-webui-password` is kept in SOPS for future use or manual reference. The current Nix module sets qBittorrent paths and port, but it does not yet inject that password into qBittorrent's generated config.
+
+## SOPS secrets workflow
+
+Always work from the development shell so `sops` and `age` are available:
+
+```sh
+nix develop
+```
+
+### Edit encrypted secrets
+
+Use this for normal updates:
+
+```sh
+sops secrets/secrets.yaml
+```
+
+SOPS opens a temporary decrypted view in your editor. Save and exit; the file on disk remains encrypted.
+
+### Create or re-encrypt secrets.yaml
+
+If `secrets/secrets.yaml` is missing, start from the example:
+
+```sh
+cp secrets/example-secrets.yaml secrets/secrets.yaml
+sops --encrypt --in-place secrets/secrets.yaml
+```
+
+If the file is plaintext and has no `sops:` metadata block, encrypt it in place:
+
+```sh
+sops --encrypt --in-place secrets/secrets.yaml
+```
+
+After encryption, secret values should look like `ENC[AES256_GCM,...]` and the file should contain a top-level `sops:` metadata block.
+
+### Check decryption safely
+
+To verify the file decrypts without printing secret values:
+
+```sh
+sops --decrypt secrets/secrets.yaml >/dev/null && echo ok
+```
+
+To view decrypted content locally:
+
+```sh
+sops --decrypt secrets/secrets.yaml
+```
+
+Do not paste decrypted output into commits, issues, chat, logs, or shell history.
+
+### Repair a half-encrypted file
+
+If `sops secrets/secrets.yaml` fails with an error like `sops metadata not found`, the file is probably plaintext. Encrypt it:
+
+```sh
+sops --encrypt --in-place secrets/secrets.yaml
+```
+
+If it fails with an error like `does not match sops' data format`, the file likely has plaintext values plus a stale `sops:` block. Fix it by removing the entire top-level `sops:` block from `secrets/secrets.yaml`, then re-encrypt:
+
+```sh
+sops --encrypt --in-place secrets/secrets.yaml
+sops --decrypt secrets/secrets.yaml >/dev/null && echo ok
+```
+
+### Rekey after host key changes
+
+If the `media-vm` SSH host key or the `.sops.yaml` recipient changes, rekey the file:
+
+```sh
+sops updatekeys secrets/secrets.yaml
+```
+
+After rekeying, verify decryption still works locally:
+
+```sh
+sops --decrypt secrets/secrets.yaml >/dev/null && echo ok
+```
+
+## media-vm bootstrap flow
+
+1. Enter the development shell:
+
+```sh
+nix develop
+```
+
+2. Fill and encrypt `secrets/secrets.yaml`.
+
+3. Make sure `.sops.yaml` contains a recipient that `media-vm` can decrypt with.
+
+4. Validate the local config:
+
+```sh
+scripts/bootstrap-media.sh
+```
+
+5. Install NixOS on the VM using your preferred installer flow.
+
+6. Confirm SSH for `smoke@10.2.20.113` works.
+
+7. Deploy `media-vm`:
+
+```sh
+scripts/deploy-media.sh
+```
+
+## media-vm day-2 deploy flow
 
 Enter the development shell first:
 
@@ -69,7 +320,7 @@ colmena apply --on @media
 colmena build --on media-vm
 ```
 
-### 8. Check service status
+## media-vm service status
 
 ```sh
 colmena exec --on media-vm -- systemctl status jellyfin
@@ -84,7 +335,7 @@ colmena exec --on media-vm -- systemctl status flaresolverr
 colmena exec --on media-vm -- systemctl status prometheus-node-exporter
 ```
 
-### 9. Access each web UI
+## media-vm web UIs
 
 - Jellyfin: `http://10.2.20.113:8096`
 - Radarr: `http://10.2.20.113:7878`
@@ -97,7 +348,11 @@ colmena exec --on media-vm -- systemctl status prometheus-node-exporter
 
 FlareSolverr listens on port `8191` for internal app integration and is not opened in the firewall.
 
-### 10. Test the SMB mount
+## Jellyfin kids access
+
+Use one Jellyfin instance. After first Jellyfin setup, create a non-admin user named `kids`, grant only the Kids Movies and Kids TV Shows libraries, disable deletion, disable downloads unless wanted, and use parental controls or a `kids-approved` tag as a secondary control.
+
+## media-vm SMB mount checks
 
 On `media-vm`:
 
@@ -113,13 +368,23 @@ mount /mnt/media
 ls -la /mnt/media
 ```
 
-### 11. Run a manual backup
+## media-vm backups
+
+Backups are handled by `appsdata-backup.service` and `appsdata-backup.timer`.
+
+- Source: `/srv/appsdata`
+- Repository: `/mnt/backups/restic/appdata/media-stack-vm`
+- Password file: `/run/secrets/restic-password`
+- Schedule: daily
+- Retention: 7 daily, 4 weekly, 6 monthly snapshots
+
+Run a manual backup:
 
 ```sh
 systemctl start appsdata-backup.service
 ```
 
-### 12. Inspect backups
+Inspect backups:
 
 ```sh
 systemctl status appsdata-backup.timer
@@ -129,7 +394,7 @@ RESTIC_REPOSITORY=/mnt/backups/restic/appdata/media-stack-vm \
   restic snapshots
 ```
 
-### 13. Restore /srv/appsdata
+## Restore /srv/appsdata
 
 1. Stop the media services:
 
@@ -158,7 +423,7 @@ systemd-tmpfiles --create
 systemctl start jellyfin radarr sonarr prowlarr bazarr qbittorrent sabnzbd jellyseerr flaresolverr
 ```
 
-### 14. Roll back a NixOS deployment
+## Roll back a NixOS deployment
 
 From `media-vm`, choose the previous generation:
 
@@ -168,42 +433,9 @@ sudo nixos-rebuild switch --rollback
 
 Or reboot and select an earlier generation in the bootloader menu. After rollback, check the affected services with `systemctl status`.
 
-### 15. Safety notes around destructive disk installs
+## Safety notes around destructive disk installs
 
 The VM disk is configured as `/dev/sda` in `hosts.nix`. Treat any install or partitioning command against that disk as destructive. Confirm the target VM ID, disk path, and console before running installer commands, and never run disk setup commands from this repository against a machine that has data you intend to keep.
-
-### 16. App recovery backup boundary
-
-`/srv/appsdata` is the single folder to back up for media-stack application recovery. It holds Jellyfin, Radarr, Sonarr, Prowlarr, Bazarr, qBittorrent, SABnzbd, Jellyseerr, FlareSolverr placeholder state, and monitoring backup state.
-
-### 17. Media files are not in the appdata backup
-
-Media files under `/mnt/media` are mounted from SMB and are not included in `appsdata-backup.service`. Back up the NAS media share separately if you want movie, TV, book, podcast, audiobook, comic, or PDF files protected.
-
-## media-vm first run values
-
-These values are already represented in `hosts.nix` and `hosts/media-vm/configuration.nix`:
-
-- IP address: `10.2.20.113`
-- Gateway: `10.2.20.1`
-- DNS servers: `10.2.20.1`, `1.1.1.1`
-- Admin username: `smoke`
-- Admin SSH public key: `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIATd/kn93HeAqaT5e8uW68n/JoWBesQkyruVNLsG3NDc khalid`
-- Media SMB device: `//nas.home.arpa/media`
-- Media mount: `/mnt/media`
-
-Put the real values in `secrets/secrets.yaml`, then encrypt it with SOPS before deploying:
-
-- `admin-password-hash`
-- `smb-credentials`
-- `restic-password`
-- optional `qbittorrent-webui-password`
-
-The committed `secrets/secrets.yaml` is an encrypted placeholder. Replace it with your real encrypted values and rekey it for the `media-vm` host before first deployment.
-
-## Jellyfin kids access
-
-Use one Jellyfin instance. After first Jellyfin setup, create a non-admin user named `kids`, grant only the Kids Movies and Kids TV Shows libraries, disable deletion, disable downloads unless wanted, and use parental controls or a `kids-approved` tag as a secondary control.
 
 ## Adding services
 
@@ -217,14 +449,13 @@ As mentioned in the video, AI can do wonders for this.
 
 Make sure your SSH key is in `hosts/common.nix` or you won't be able to deploy.
 
-If services aren't accessible, check the firewall settings. Nothing is open by default.
+If services aren't accessible, check the firewall settings. The base config opens SSH, and individual enabled service modules open only their required ports.
 
 As a quick hack, add the reverse proxy domains to your `/etc/hosts` file so they resolve properly. But better to set up proper DNS.
 
 This setup assumes you're semi-comfortable with NixOS. If you're new to NixOS and flakes, check out the book: https://nixos-and-flakes.thiscute.world/
 
 The monitoring stack will start collecting metrics immediately. Grafana runs on port 3000 of your gateway-vm server (or whatever you call your main one).
-
 
 ## Resources
 

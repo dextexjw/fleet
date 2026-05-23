@@ -38,25 +38,6 @@ let
     "${appdata}/sonarr"
   ];
 
-  mediaDirs = [
-    mediaRoot
-    cfg.libraries.audiobooks
-    cfg.libraries.books
-    cfg.libraries.calibre
-    cfg.libraries.comics
-    cfg.libraries.kidsMovies
-    cfg.libraries.kidsTv
-    cfg.libraries.movies
-    cfg.libraries.newMovies
-    cfg.libraries.pdfs
-    cfg.libraries.podcasts
-    cfg.libraries.tv
-    cfg.downloads.incomplete
-    cfg.downloads.root
-    cfg.downloads.torrents
-    cfg.downloads.usenet
-  ];
-
   sabnzbdConfig = pkgs.writeText "sabnzbd.ini" ''
     [misc]
     host = 0.0.0.0
@@ -159,8 +140,12 @@ in
         default = [
           "vers=3.0"
           "noauto"
+          "nofail"
           "x-systemd.automount"
+          "x-systemd.after=network-online.target"
           "x-systemd.idle-timeout=60"
+          "x-systemd.mount-timeout=30s"
+          "x-systemd.requires=network-online.target"
           "_netdev"
         ];
         description = "Systemd-aware CIFS mount options.";
@@ -205,13 +190,7 @@ in
       home = "${appdata}/jellyseerr";
     };
 
-    systemd.tmpfiles.rules =
-      (map (path: "d '${path}' 0770 root media - -") appsdataDirs)
-      ++ (map (path: "d '${path}' 0775 root media - -") mediaDirs)
-      ++ [
-        "d '${cfg.smb.backupMount}' 0750 root root - -"
-        "d '${cfg.backup.repository}' 0750 root root - -"
-      ];
+    systemd.tmpfiles.rules = map (path: "d '${path}' 0770 root media - -") appsdataDirs;
 
     # --------------------------------------------------------------------------
     # SMB MOUNTS
@@ -393,6 +372,7 @@ in
         export RESTIC_PASSWORD_FILE='${resticPasswordFile}'
         export RESTIC_REPOSITORY='${cfg.backup.repository}'
 
+        install -d -m 0750 -o root -g root '${cfg.backup.repository}'
         restic snapshots >/dev/null 2>&1 || restic init
         restic backup '${cfg.backup.source}' \
           --one-file-system \

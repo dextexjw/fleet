@@ -761,17 +761,23 @@ in
         2. Before opening app web UIs, run this from the repo development shell:
              scripts/restore-media-appdata.sh
         3. The script stops media services, mounts /mnt/backups, checks for
-           media-vm/appsdata snapshots, restores the latest snapshot if found,
-           reapplies tmpfiles, and restarts media services.
-        4. If no matching snapshot exists, the script starts media services and
+           media-vm/appsdata snapshots, moves fresh appdata aside, repairs
+           restored ownership, reapplies tmpfiles, and restarts media services.
+        4. If multiple snapshots exist, rerun with an explicit snapshot ID:
+             scripts/restore-media-appdata.sh <snapshot-id>
+        5. If no matching snapshot exists, the script starts media services and
            appsdata-backup.timer, then continues as a fresh system.
 
       Full restore outline:
         1. Stop appsdata-backup.timer and media services.
         2. Mount /mnt/backups.
-        3. Restore the latest media-vm/appsdata snapshot to / with restic --verify.
-        4. Run systemd-tmpfiles --create.
-        5. Start media services, appsdata-backup.timer, and appsdata-restore-check.service.
+        3. Choose a media-vm/appsdata snapshot ID, avoiding tiny fresh-system
+           snapshots made after a rebuild.
+        4. Move existing /srv/appsdata aside, then restore the chosen snapshot
+           to / with restic --verify.
+        5. Normalize ownership for rebuilt users and run systemd-tmpfiles --create.
+        6. Restart kavita-token-key.service, media services, appsdata-backup.timer,
+           and appsdata-restore-check.service.
 
       Jellyfin kids access is configured inside Jellyfin after first setup:
       create a non-admin user named kids, grant only the Kids Movies and Kids TV

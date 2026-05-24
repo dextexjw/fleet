@@ -274,6 +274,16 @@ backup exists.
 scripts/restore-media-appdata.sh
 ```
 
+If the script lists multiple matching snapshots, rerun it with the exact snapshot
+ID you want to restore:
+
+```sh
+scripts/restore-media-appdata.sh <snapshot-id>
+```
+
+After a rebuild, avoid tiny fresh-system snapshots and choose the last known good
+appdata snapshot from before the rebuild.
+
 8. Confirm the hostname and backup flow.
 
 ```sh
@@ -347,12 +357,13 @@ RESTIC_REPOSITORY=/mnt/backups/restic/appdata/media-stack-vm \
   restic snapshots --host media-vm --path /srv/appsdata --tag appsdata
 ```
 
-4. Restore the latest tagged snapshot.
+4. Restore the selected tagged snapshot.
 
 ```sh
+SNAPSHOT=<snapshot-id>
 RESTIC_REPOSITORY=/mnt/backups/restic/appdata/media-stack-vm \
   RESTIC_PASSWORD_FILE=/run/secrets/restic-password \
-  restic restore latest \
+  restic restore "$SNAPSHOT" \
     --host media-vm \
     --path /srv/appsdata \
     --tag appsdata \
@@ -360,10 +371,12 @@ RESTIC_REPOSITORY=/mnt/backups/restic/appdata/media-stack-vm \
     --verify
 ```
 
-5. Reapply declared directories, restart services, and validate.
+5. Reapply declared directories, normalize ownership for rebuilt users, restart
+   services, and validate.
 
 ```sh
 systemd-tmpfiles --create
+systemctl restart kavita-token-key.service
 systemctl start jellyfin audiobookshelf kavita radarr sonarr prowlarr bazarr qbittorrent sabnzbd jellyseerr flaresolverr
 systemctl start appsdata-backup.timer
 systemctl start appsdata-restore-check.service

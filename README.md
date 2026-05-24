@@ -292,26 +292,32 @@ sops --decrypt secrets/secrets.yaml >/dev/null && echo ok
 nix develop
 ```
 
-2. Fill and encrypt `secrets/secrets.yaml`.
+2. Fill and encrypt `secrets/secrets.yaml` for your local/admin key.
 
-3. Make sure `.sops.yaml` contains a recipient that `media-vm` can decrypt with.
-
-4. Validate the local config:
+3. Validate the local config:
 
 ```sh
 nix flake check
 colmena build --on media-vm
 ```
 
-5. Install NixOS on the VM using your preferred installer flow.
+4. Install NixOS on the VM using your preferred installer flow.
 
-6. Confirm SSH for `smoke@10.2.20.113` works.
+5. Confirm SSH for `smoke@10.2.20.113` works.
+
+6. Add the VM's configured SOPS key to `.sops.yaml`, then rekey the secrets file:
+
+```sh
+ssh smoke@10.2.20.113 'sudo ssh-keygen -y -f /etc/ssh/ssh_host_ed25519_key' | awk '{print $1 " " $2 " media-vm"}'
+sops updatekeys secrets/secrets.yaml
+```
+
+Use the printed `ssh-ed25519 ... media-vm` public key as a recipient in `.sops.yaml`. This must be the key from `/etc/ssh/ssh_host_ed25519_key`, because that is the private key `media-vm` uses to decrypt SOPS secrets during activation.
 
 7. Deploy `media-vm`:
 
 ```sh
 colmena apply --on media-vm switch
-colmena apply --on media-vm switch --build-on-target
 ```
 
 8. Validate backup and restore:

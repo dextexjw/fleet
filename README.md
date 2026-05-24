@@ -326,6 +326,7 @@ This recipient must be derived from `/etc/ssh/ssh_host_ed25519_key`, because tha
 
 ```sh
 colmena apply --on media-vm switch
+colmena apply --on media-vm switch --build-on-target
 ```
 
 8. Confirm the hostname settled:

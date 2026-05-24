@@ -241,23 +241,21 @@ Use this flow after preparing a fresh `media-vm` install. The destructive
 `nixos-anywhere` VM install is managed from the separate installer repo before
 this fleet deployment begins.
 
-1. Enter the dev shell.
+1. Enter the dev shell and make sure `secrets/secrets.yaml` is filled and
+   encrypted.
 
 ```sh
 nix develop
 ```
 
-2. Fill and encrypt `secrets/secrets.yaml`.
-
-3. Run the external `nixos-anywhere` install for `media-vm`.
-
-4. Confirm non-interactive SSH works.
+2. Run the external `nixos-anywhere` install for `media-vm`, then confirm
+   non-interactive SSH works.
 
 ```sh
 ssh -o BatchMode=yes smoke@10.2.20.113 true
 ```
 
-5. Run the guided post-install bootstrap.
+3. Run the guided post-install bootstrap.
 
 ```sh
 scripts/bootstrap-media-vm.sh run
@@ -267,8 +265,8 @@ The wrapper runs these phases in order:
 
 - `check-local-readiness`: verifies local tools, encrypted secrets,
   `nix flake check`, and `colmena build --on media-vm`.
-- `enable-vm-secret-access`: adds the VM SSH host key as a SOPS age recipient
-  and rekeys secrets.
+- `enable-vm-secret-access`: runs `scripts/update-media-sops-recipient.sh` to
+  add the VM SSH host key as a SOPS age recipient and rekey secrets.
 - `deploy-media-vm`: runs the guarded `media-vm` deployment and normalizes
   the transient hostname left by the installer.
 - `restore-appdata`: restores existing appdata from Restic when a matching

@@ -237,7 +237,9 @@ repository; changing it makes existing snapshots unreadable with the new value.
 
 ## media-vm Bootstrap
 
-Use this flow for a fresh `media-vm` install:
+Use this flow after preparing a fresh `media-vm` install. The destructive
+`nixos-anywhere` VM install is managed from the separate installer repo before
+this fleet deployment begins.
 
 1. Enter the dev shell.
 
@@ -247,78 +249,61 @@ nix develop
 
 2. Fill and encrypt `secrets/secrets.yaml`.
 
-3. Run bootstrap checks.
+3. Run the external `nixos-anywhere` install for `media-vm`.
+
+4. Confirm non-interactive SSH works.
 
 ```sh
-scripts/bootstrap-media.sh
+ssh -o BatchMode=yes smoke@10.2.20.113 true
 ```
 
-4. Install NixOS on the VM and confirm SSH works.
+5. Run the guided post-install bootstrap.
 
 ```sh
-ssh smoke@10.2.20.113
+scripts/bootstrap-media-vm.sh run
 ```
 
-5. Add the VM SSH host recipient to `.sops.yaml`, then rekey secrets.
+The wrapper runs these phases in order:
 
-Run the helper from inside `nix develop`:
+- `check-local-readiness`: verifies local tools, encrypted secrets,
+  `nix flake check`, and `colmena build --on media-vm`.
+- `enable-vm-secret-access`: adds the VM SSH host key as a SOPS age recipient
+  and rekeys secrets.
+- `deploy-media-vm`: runs the guarded `media-vm` deployment.
+- `restore-appdata`: restores existing appdata from Restic when a matching
+  snapshot exists.
+- `verify-media-vm`: confirms hostname state and runs the backup/restore
+  validation.
 
-```sh
-scripts/update-media-sops-recipient.sh
-```
-
-The script fetches the VM's `/etc/ssh/ssh_host_ed25519_key` public key, converts
-it to an age recipient, adds it to `.sops.yaml` if needed, runs
-`sops updatekeys --yes secrets/secrets.yaml`, and verifies local decryption.
-
-Manual fallback:
-
-Fetch the VM's `/etc/ssh/ssh_host_ed25519_key` public key and convert it to an
-age recipient:
+If the restore phase lists multiple matching snapshots, rerun it with the exact
+snapshot ID you want to restore:
 
 ```sh
-ssh smoke@10.2.20.113 'sudo ssh-keygen -y -f /etc/ssh/ssh_host_ed25519_key' | ssh-to-age
-```
-
-Add the printed `age1...` recipient to `.sops.yaml`, then update and verify the
-encrypted secrets:
-
-```sh
-sops updatekeys --yes secrets/secrets.yaml
-sops --decrypt secrets/secrets.yaml >/dev/null && echo ok
-```
-
-6. Deploy the host.
-
-```sh
-scripts/deploy-media.sh
-```
-
-7. Before opening any app web UI, restore existing appdata if a matching
-backup exists.
-
-```sh
-scripts/restore-media-appdata.sh
-```
-
-If the script lists multiple matching snapshots, rerun it with the exact snapshot
-ID you want to restore:
-
-```sh
-scripts/restore-media-appdata.sh <snapshot-id>
+scripts/bootstrap-media-vm.sh restore-appdata <snapshot-id>
+scripts/bootstrap-media-vm.sh verify-media-vm
 ```
 
 After a rebuild, avoid tiny fresh-system snapshots and choose the last known good
 appdata snapshot from before the rebuild.
 
-8. Confirm the hostname and backup flow.
+The phases can also be run individually:
 
 ```sh
-ssh smoke@10.2.20.113 'hostnamectl --static; hostnamectl --transient'
-scripts/test-media-backup.sh
+scripts/bootstrap-media-vm.sh check-local-readiness
+scripts/bootstrap-media-vm.sh enable-vm-secret-access
+scripts/bootstrap-media-vm.sh deploy-media-vm
+scripts/bootstrap-media-vm.sh restore-appdata [snapshot-id]
+scripts/bootstrap-media-vm.sh verify-media-vm
 ```
 
-Both hostname values should report `media-vm`.
+To pass a known snapshot through the full bootstrap:
+
+```sh
+scripts/bootstrap-media-vm.sh run --snapshot-id <snapshot-id>
+```
+
+During verification, both static and transient hostname values should report
+`media-vm`.
 
 ## Backups and Restore
 

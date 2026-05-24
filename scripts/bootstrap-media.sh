@@ -17,6 +17,8 @@ need() {
 need nix
 need sops
 need ssh
+need ssh-to-age
+need colmena
 
 cd "$ROOT"
 
@@ -40,16 +42,10 @@ nix flake check
 colmena build --on "$HOST"
 
 cat <<MSG
-Bootstrap checks passed for $HOST.
+Local readiness checks passed for $HOST.
 
 Next steps:
-  1. Install NixOS on the VM disk with the destructive installer flow you trust.
-  2. Ensure SSH for smoke works at 10.2.20.113.
-  3. Add the VM SSH host recipient to .sops.yaml and rekey secrets:
-       scripts/update-media-sops-recipient.sh
-  4. Run: scripts/deploy-media.sh
-  5. Confirm hostname state:
-       ssh smoke@10.2.20.113 'hostnamectl --static; hostnamectl --transient'
-     If the transient hostname still shows the bootstrap name, reboot once or run:
-       ssh smoke@10.2.20.113 'sudo hostnamectl --transient hostname media-vm'
+  1. Run the external nixos-anywhere install flow for the VM.
+  2. Ensure non-interactive SSH for smoke works at 10.2.20.113.
+  3. Continue with: scripts/bootstrap-media-vm.sh run
 MSG

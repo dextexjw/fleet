@@ -311,6 +311,7 @@ colmena build --on media-vm
 
 ```sh
 colmena apply --on media-vm switch
+colmena apply --on media-vm switch --build-on-target
 ```
 
 8. Validate backup and restore:

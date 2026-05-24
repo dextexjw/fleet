@@ -21,8 +21,11 @@
       ...
     }:
     let
+      system = "x86_64-linux";
+
       # Import host definitions from single source of truth
       hosts = import ./hosts.nix;
+      pkgs = nixpkgs.legacyPackages.${system};
 
       ephemeralSshOptions = [
         "-o"
@@ -49,29 +52,6 @@
       #   imports = [ ./hosts/${name}/configuration.nix ];
       # };
       # hostConfigs = builtins.mapAttrs mkHost hosts;
-    in
-    {
-      # ==========================================================================
-      # DEVELOPMENT SHELL - Local development environment
-      # ==========================================================================
-
-      devShells.x86_64-linux.default =
-        let
-          pkgs = nixpkgs.legacyPackages.x86_64-linux;
-        in
-        pkgs.mkShell {
-          buildInputs = [
-            colmena.packages.x86_64-linux.colmena
-            pkgs.age
-            pkgs.restic
-            pkgs.sops
-            pkgs.ssh-to-age
-          ];
-        };
-
-      # ==========================================================================
-      # COLMENA HIVE - Fleet deployment configuration
-      # ==========================================================================
 
       colmenaHive = colmena.lib.makeHive {
         # ========================================================================
@@ -116,5 +96,26 @@
           ];
         };
       };
+    in
+    {
+      # ==========================================================================
+      # DEVELOPMENT SHELL - Local development environment
+      # ==========================================================================
+
+      devShells.${system}.default = pkgs.mkShell {
+        buildInputs = [
+          colmena.packages.${system}.colmena
+          pkgs.age
+          pkgs.restic
+          pkgs.sops
+          pkgs.ssh-to-age
+        ];
+      };
+
+      # ==========================================================================
+      # COLMENA HIVE - Fleet deployment configuration
+      # ==========================================================================
+
+      legacyPackages.${system}.colmenaHive = colmenaHive;
     };
 }

@@ -320,7 +320,19 @@ Use the printed `age1...` public key as a recipient in `.sops.yaml`. This must b
 colmena apply --on media-vm switch
 ```
 
-8. Validate backup and restore:
+8. Confirm the hostname settled:
+
+```sh
+ssh smoke@10.2.20.113 'hostnamectl --static; hostnamectl --transient'
+```
+
+The static hostname should be `media-vm`. If the transient hostname still shows the installer/bootstrap name, either reboot once or set it explicitly:
+
+```sh
+ssh smoke@10.2.20.113 'sudo hostnamectl --transient hostname media-vm'
+```
+
+9. Validate backup and restore:
 
 ```sh
 scripts/test-media-backup.sh

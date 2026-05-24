@@ -50,4 +50,8 @@ Next steps:
        ssh smoke@10.2.20.113 'sudo ssh-keygen -y -f /etc/ssh/ssh_host_ed25519_key' | ssh-to-age
   4. Run: sops updatekeys secrets/secrets.yaml
   5. Run: scripts/deploy-media.sh
+  6. Confirm hostname state:
+       ssh smoke@10.2.20.113 'hostnamectl --static; hostnamectl --transient'
+     If the transient hostname still shows the bootstrap name, reboot once or run:
+       ssh smoke@10.2.20.113 'sudo hostnamectl --transient hostname media-vm'
 MSG

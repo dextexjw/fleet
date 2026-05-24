@@ -114,7 +114,16 @@ chmod 0770 "\$source_path"
 [ -d "\$source_path/kavita" ] && chown -R kavita:kavita "\$source_path/kavita"
 [ -d "\$source_path/radarr" ] && chown -R radarr:media "\$source_path/radarr"
 [ -d "\$source_path/sonarr" ] && chown -R sonarr:media "\$source_path/sonarr"
-[ -d "\$source_path/prowlarr" ] && chown -R prowlarr:prowlarr "\$source_path/prowlarr"
+if [ -d "\$source_path/prowlarr" ]; then
+  if getent passwd prowlarr >/dev/null && getent group prowlarr >/dev/null; then
+    chown -R prowlarr:prowlarr "\$source_path/prowlarr"
+  elif [ -e "\$source_path/prowlarr/config.xml" ]; then
+    prowlarr_owner="\$(stat -c '%u:%g' "\$source_path/prowlarr/config.xml")"
+    chown -R "\$prowlarr_owner" "\$source_path/prowlarr"
+  else
+    echo 'Prowlarr dynamic user is unavailable and no config.xml exists; leaving ownership for service startup.'
+  fi
+fi
 [ -d "\$source_path/bazarr" ] && chown -R bazarr:media "\$source_path/bazarr"
 [ -d "\$source_path/qbittorrent" ] && chown -R qbittorrent:media "\$source_path/qbittorrent"
 [ -d "\$source_path/sabnzbd" ] && chown -R sabnzbd:media "\$source_path/sabnzbd"

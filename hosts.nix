@@ -5,23 +5,38 @@
 
 {
   gateway-vm = {
+    domain = "home.arpa";
+    fqdn = "gateway.home.arpa";
     ip = "10.2.20.112";
+    gateway = "10.2.20.1";
+    nameservers = [
+      "10.2.20.1"
+      "9.9.9.9"
+    ];
     user = "smoke";
     tags = [
       "control-plane"
-      "monitoring"
+      "gateway"
     ];
+    timezone = "America/New_York";
+    vm = {
+      cores = 4;
+      disk = "/dev/sda";
+      id = "112";
+      name = "gateway-vm";
+      ramGB = 8;
+    };
   };
 
   media-vm = {
     arch = "x86_64-linux";
     domain = "home.arpa";
     fqdn = "media.home.arpa";
-    gateway = "10.2.20.1";
     ip = "10.2.20.113";
+    gateway = "10.2.20.1";
     nameservers = [
       "10.2.20.1"
-      "1.1.1.1"
+      "9.9.9.9"
     ];
     user = "smoke";
     tags = [
@@ -33,7 +48,7 @@
       disk = "/dev/sda";
       id = "113";
       name = "media-vm";
-      ramGB = 12;
+      ramGB = 8;
     };
   };
 }

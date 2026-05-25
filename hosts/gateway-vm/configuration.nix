@@ -54,6 +54,9 @@ in
       technitium-admin-password = {
         restartUnits = [ "technitium-dns-configure.service" ];
       };
+      technitium-admin-username = {
+        restartUnits = [ "technitium-dns-configure.service" ];
+      };
     };
   };
 
@@ -93,6 +96,7 @@ in
 
   fleet.gateway.technitium = {
     adminPasswordFile = config.sops.secrets.technitium-admin-password.path;
+    adminUsernameFile = config.sops.secrets.technitium-admin-username.path;
     enable = true;
     localZone.aRecords = {
       "*" = host.ip;

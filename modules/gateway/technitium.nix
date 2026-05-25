@@ -32,6 +32,11 @@ let
       "''"
     else
       escapeShellArg cfg.adminPasswordFile;
+  adminUsernameFileArg =
+    if cfg.adminUsernameFile == null then
+      "''"
+    else
+      escapeShellArg cfg.adminUsernameFile;
   bool = value: if value then "true" else "false";
   certificatePath = "/var/lib/technitium-dns-server/tls/${cfg.tlsCertificateDomain}.pfx";
   sanList = concatStringsSep "," cfg.tlsSubjectAltNames;
@@ -48,6 +53,12 @@ in
       type = types.nullOr types.str;
       default = null;
       description = "Runtime secret file containing the Technitium admin password.";
+    };
+
+    adminUsernameFile = mkOption {
+      type = types.nullOr types.str;
+      default = null;
+      description = "Runtime secret file containing the Technitium admin username.";
     };
 
     configureEncryptedDns = mkOption {
@@ -213,6 +224,7 @@ in
 
         base="http://127.0.0.1:${toString cfg.webPort}"
         password_file=${adminPasswordFileArg}
+        username_file=${adminUsernameFileArg}
 
         if [ "$password_file" = "" ] || [ ! -r "$password_file" ]; then
           echo "Technitium admin password file is unavailable." >&2
@@ -220,6 +232,25 @@ in
         fi
 
         admin_password="$(tr -d '\r\n' < "$password_file")"
+
+        if [ "$username_file" = "" ]; then
+          admin_user=admin
+        elif [ -r "$username_file" ]; then
+          admin_user="$(tr -d '\r\n' < "$username_file")"
+        else
+          echo "Technitium admin username file is unavailable." >&2
+          exit 1
+        fi
+
+        if [ -z "$admin_user" ]; then
+          echo "Technitium admin username is empty." >&2
+          exit 1
+        fi
+
+        if [ -z "$admin_password" ]; then
+          echo "Technitium admin password is empty." >&2
+          exit 1
+        fi
 
         for attempt in {1..60}; do
           if curl -fsS "$base/" >/dev/null; then
@@ -235,28 +266,30 @@ in
         done
 
         login() {
-          local password="$1"
+          local username="$1"
+          local password="$2"
           curl -fsS --get "$base/api/user/login" \
-            --data-urlencode "user=admin" \
+            --data-urlencode "user=$username" \
             --data-urlencode "pass=$password" \
             | sed -n 's/.*"token":"\([^"]*\)".*/\1/p'
         }
 
-        token="$(login "$admin_password" || true)"
+        token="$(login "$admin_user" "$admin_password" || true)"
+        authenticated_user=$admin_user
 
         if [ -z "$token" ]; then
-          token="$(login admin || true)"
-          if [ -z "$token" ]; then
-            echo "Unable to authenticate to Technitium with managed or default admin password." >&2
-            exit 1
-          fi
+          token="$(login admin "$admin_password" || true)"
+          authenticated_user=admin
+        fi
 
-          change_response="$(curl -fsS --get "$base/api/user/changePassword" \
-            --data-urlencode "token=$token" \
-            --data-urlencode "pass=$admin_password")"
-          echo "$change_response" | grep -q '"status":"ok"'
+        if [ -z "$token" ]; then
+          token="$(login admin admin || true)"
+          authenticated_user=admin
+        fi
 
-        token="$(login "$admin_password")"
+        if [ -z "$token" ]; then
+          echo "Unable to authenticate to Technitium with managed or default admin credentials." >&2
+          exit 1
         fi
 
         api_expect_ok() {
@@ -275,6 +308,29 @@ in
             exit 1
           fi
         }
+
+        if [ "$authenticated_user" = admin ]; then
+          if [ "$admin_user" = admin ]; then
+            api_expect_ok "set admin password" "$base/api/admin/users/set" \
+              --data-urlencode "user=admin" \
+              --data-urlencode "displayName=Administrator" \
+              --data-urlencode "newPass=$admin_password" \
+              --data-urlencode "memberOfGroups=Administrators"
+          else
+            api_expect_ok "rename admin user" "$base/api/admin/users/set" \
+              --data-urlencode "user=admin" \
+              --data-urlencode "displayName=Administrator" \
+              --data-urlencode "newUser=$admin_user" \
+              --data-urlencode "newPass=$admin_password" \
+              --data-urlencode "memberOfGroups=Administrators"
+          fi
+
+          token="$(login "$admin_user" "$admin_password")"
+          if [ -z "$token" ]; then
+            echo "Unable to authenticate to Technitium with managed admin credentials after migration." >&2
+            exit 1
+          fi
+        fi
 
         api_expect_ok_or_exists() {
           local label="$1"

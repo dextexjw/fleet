@@ -91,6 +91,7 @@ Required secrets:
 - `admin-password-hash`
 - `smb-credentials`
 - `restic-password`
+- `technitium-admin-username`
 - `technitium-admin-password`
 
 Normal edit flow:

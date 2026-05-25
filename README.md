@@ -20,7 +20,7 @@ production-ready.
 
 | Host | IP | Tags | Role |
 | --- | --- | --- | --- |
-| `gateway-vm` | `10.2.20.112` | `control-plane`, `gateway` | Traefik, Technitium DNS, netboot.xyz, NetBird, Tailscale |
+| `gateway-vm` | `10.2.20.112` | `gateway` | Traefik, Technitium DNS, netboot.xyz, NetBird, Tailscale |
 | `media-vm` | `10.2.20.113` | `media` | Jellyfin, Audiobookshelf, Kavita, ARR stack, downloads, SMB media, Restic appdata backups |
 
 Inventory lives in `hosts.nix`. Per-host configuration lives under

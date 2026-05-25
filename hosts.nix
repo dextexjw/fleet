@@ -16,7 +16,6 @@
     ];
     user = "smoke";
     tags = [
-      "control-plane"
       "gateway"
     ];
     timezone = "America/New_York";

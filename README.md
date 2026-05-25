@@ -1,4 +1,4 @@
-# Personal NixOS Fleet
+# Homelab NixOS Fleet
 
 This repository is my personal NixOS homelab fleet. It is managed as a Nix
 flake and deployed with Colmena.

@@ -59,8 +59,9 @@ endpoint is available.
 release artifact and Technitium DNS to the upstream `15.2.0` source release
 while the rest of the fleet remains on the locked `nixpkgs` package set.
 
-Technitium serves the `.h` service zone. Service names resolve to
-`gateway-vm` at `10.2.20.112`, where Traefik routes them to their backends.
+Technitium serves the `.h` service zone. Wildcard DNS resolves `*.h` to
+`gateway-vm` at `10.2.20.112`, where Traefik routes known hostnames to their
+backends.
 VM hostnames stay under `home.arpa` and are managed outside this Gateway
 service zone. Clients must use `10.2.20.112` as DNS, or the LAN DNS/DHCP server
 must forward/delegate `.h` to `10.2.20.112`, for these names to resolve.
@@ -78,7 +79,7 @@ conditional forward/delegation for `.h` to `10.2.20.112`. A temporary
 single-client workaround is adding `10.2.20.112 technitium.h` to that client's
 hosts file.
 
-Traefik ingress routes are declared for:
+Traefik ingress routes are declared explicitly for:
 
 - `technitium.h`
 - `traefik.h`

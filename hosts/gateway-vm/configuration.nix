@@ -139,19 +139,8 @@ in
     enable = true;
     localZone.domain = serviceDomain;
     localZone.aRecords = {
-      # Gateway-routed service names resolve to Traefik.
-      audiobookshelf = host.ip;
-      bazarr = host.ip;
-      jellyfin = host.ip;
-      jellyseerr = host.ip;
-      kavita = host.ip;
-      prowlarr = host.ip;
-      qbittorrent = host.ip;
-      radarr = host.ip;
-      sabnzbd = host.ip;
-      sonarr = host.ip;
-      technitium = host.ip;
-      traefik = host.ip;
+      # Gateway-routed service names resolve to Traefik through wildcard DNS.
+      "*" = host.ip;
     };
     package = technitium-dns-server_15_2_0;
     serverDomain = host.fqdn;

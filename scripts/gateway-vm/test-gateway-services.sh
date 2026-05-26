@@ -100,7 +100,7 @@ else
   printf 'Skipping NetBird checks; netbird.service is not installed on %s\n' "$HOST"
 fi
 
-printf 'Checking .h service DNS records...\n'
+printf 'Checking .h wildcard service DNS records...\n'
 check_dns_record() {
   local name="$1"
   local expected_ip="$2"
@@ -124,6 +124,7 @@ check_dns_record jellyfin.h "$HOST_IP"
 check_dns_record kavita.h "$HOST_IP"
 check_dns_record technitium.h "$HOST_IP"
 check_dns_record traefik.h "$HOST_IP"
+check_dns_record wildcard-gateway-validation.h "$HOST_IP"
 
 printf 'Checking Traefik and Technitium local HTTP endpoints...\n'
 wait_for_remote "Traefik dashboard web route failed" "curl -fsS -H 'Host: traefik.h' http://127.0.0.1/dashboard/ >/dev/null"

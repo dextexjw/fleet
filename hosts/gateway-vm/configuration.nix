@@ -312,7 +312,7 @@ in
       Traefik: traefik.service, version 3.7.1, ingress ports 80 and optional 443, dashboard and metrics port 8080, JSON access logs in the service journal
       Technitium: technitium-dns-server.service, version 15.2.0, state /srv/appsdata/technitium-dns-server, admin HTTP on ${host.ip}:5380 and http://technitium.${serviceDomain}
       Gluetun: podman-gluetun.service, PIA OpenVPN container, state /srv/appsdata/gluetun, unauthenticated LAN HTTP proxy on ${host.ip}:8888, authenticated control API internal to the container namespace
-      Gluetun WebUI: podman-gluetun-webui.service, local-only backend on 127.0.0.1:3000, routed through http://gluetun.${serviceDomain}
+      Gluetun WebUI: podman-gluetun-webui.service, LAN access through Traefik at http://gluetun.${serviceDomain}, backend only on 127.0.0.1:3000
       netboot.xyz: atftpd.service, TFTP root /srv/netbootxyz, boot file netboot.xyz.efi
       NetBird: disabled for now, state preserved at /srv/appsdata/netbird
       Tailscale: tailscaled.service, state /srv/appsdata/tailscale
@@ -366,6 +366,7 @@ in
       systemctl is-active atftpd.service
       systemctl is-active tailscaled.service
       systemctl is-active gateway-state-backup.timer
+      curl -H 'Host: gluetun.${serviceDomain}' http://127.0.0.1/api/health
       ss -lntu
 
     Recovery notes:

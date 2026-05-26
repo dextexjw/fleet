@@ -33,7 +33,7 @@ Gateway state is backed up with Restic to
 
 ## Service Access
 
-Direct service ports:
+Service access:
 
 - Traefik HTTP ingress: `http://10.2.20.112`
 - Traefik HTTPS ingress: `https://10.2.20.112`
@@ -44,7 +44,7 @@ Direct service ports:
 - Technitium admin HTTP: `http://10.2.20.112:5380`
 - Technitium HTTPS and DNS-over-HTTPS: `https://10.2.20.112:53443`
 - Gluetun HTTP proxy: `http://10.2.20.112:8888`
-- Gluetun WebUI: `http://gluetun.h/`
+- Gluetun WebUI: `http://gluetun.h/` through Traefik; backend only on `127.0.0.1:3000`
 - netboot.xyz TFTP: `10.2.20.112:69/udp`, boot file `netboot.xyz.efi`
 - NetBird: disabled for now; state preserved at `/srv/appsdata/netbird`
 - Tailscale: `10.2.20.112:41641/udp`
@@ -70,9 +70,10 @@ selection are disabled for now. Gluetun's control API is authenticated with a
 SOPS-managed API key and is only consumed by the WebUI sidecar inside Gluetun's
 container network namespace.
 
-The Gluetun WebUI runs as `podman-gluetun-webui.service`. It has no native UI
-login, so the direct backend listener stays bound to `127.0.0.1:3000` and is
-not opened on the LAN. Use the Traefik route at `http://gluetun.h/`.
+The Gluetun WebUI runs as `podman-gluetun-webui.service` and is available on
+the LAN through Traefik at `http://gluetun.h/`. It has no native UI login, so
+the direct backend listener stays bound to `127.0.0.1:3000` and is not opened
+on the LAN as a separate port.
 
 Technitium serves the `.h` service zone. Wildcard DNS resolves `*.h` to
 `gateway-vm` at `10.2.20.112`, where Traefik routes known hostnames to their
@@ -85,13 +86,13 @@ If a browser shows `DNS_PROBE_FINISHED_NXDOMAIN` for a `.h` name, confirm
 whether the client is asking Gateway DNS:
 
 ```sh
-dig technitium.h
-dig @10.2.20.112 technitium.h
+dig gluetun.h
+dig @10.2.20.112 gluetun.h
 ```
 
 The first command must query `10.2.20.112`, or the LAN DNS server must have a
 conditional forward/delegation for `.h` to `10.2.20.112`. A temporary
-single-client workaround is adding `10.2.20.112 technitium.h` to that client's
+single-client workaround is adding `10.2.20.112 gluetun.h` to that client's
 hosts file.
 
 Traefik ingress routes are declared explicitly for:

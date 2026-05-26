@@ -149,8 +149,8 @@ wait_for_remote "Technitium route failed" "curl -fsS -H 'Host: technitium.h' htt
 printf 'Checking Gluetun LAN HTTP proxy...\n'
 wait_for_remote "Gluetun HTTP proxy failed" "curl -fsS --proxy http://${HOST_IP}:8888 https://ipinfo.io/ip >/dev/null"
 
-printf 'Checking Gluetun WebUI health...\n'
-wait_for_remote "Gluetun WebUI health failed" "curl -fsS http://127.0.0.1:3000/api/health >/dev/null"
+printf 'Checking Gluetun WebUI direct backend health...\n'
+wait_for_remote "Gluetun WebUI direct backend health failed" "curl -fsS http://127.0.0.1:3000/api/health >/dev/null"
 
 printf 'Running gateway state backup and restore validation...\n'
 ssh_gateway_vm "sudo systemctl start gateway-state-backup.service" || die "gateway-state-backup.service failed"

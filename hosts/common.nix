@@ -105,7 +105,6 @@
     neovim
     ripgrep
     rsync
-    tcpdump
     tmux
     wget
     yq

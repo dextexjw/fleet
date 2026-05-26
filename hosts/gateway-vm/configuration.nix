@@ -137,11 +137,24 @@ in
     adminUsernameFile = config.sops.secrets.technitium-admin-username.path;
     enable = true;
     localZone.aRecords = {
-      "*" = host.ip;
-      gateway = host.ip;
+      # Infrastructure services (local to gateway-vm)
       gateway-vm = host.ip;
+      netbird = host.ip;
+      netbootxyz = host.ip;
       technitium = host.ip;
       traefik = host.ip;
+
+      # Media services (hosted on media-vm)
+      audiobookshelf = hosts.media-vm.ip;
+      bazarr = hosts.media-vm.ip;
+      jellyfin = hosts.media-vm.ip;
+      jellyseerr = hosts.media-vm.ip;
+      kavita = hosts.media-vm.ip;
+      prowlarr = hosts.media-vm.ip;
+      qbittorrent = hosts.media-vm.ip;
+      radarr = hosts.media-vm.ip;
+      sabnzbd = hosts.media-vm.ip;
+      sonarr = hosts.media-vm.ip;
     };
     package = technitium-dns-server_15_2_0;
     serverDomain = host.fqdn;

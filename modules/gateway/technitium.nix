@@ -91,8 +91,8 @@ in
         default = { };
         description = "A records to publish in the local gateway DNS zone.";
         example = {
-          "*" = "10.2.20.112";
-          gateway = "10.2.20.112";
+          technitium = "10.2.20.112";
+          gateway-vm = "10.2.20.112";
         };
       };
 

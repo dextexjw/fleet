@@ -4,11 +4,12 @@ set -euo pipefail
 HOST="gateway-vm"
 HOST_IP="10.2.20.112"
 REMOTE_USER="smoke"
-EXTERNAL_TCP_PORTS=(22 53 80 853 5380 8080 53443)
+EXTERNAL_TCP_PORTS=(22 53 80 853 5380 8080 8888 53443)
 UDP_PORTS=(53 69 41641)
 KEY_UNITS=(
   traefik.service
   technitium-dns-server.service
+  podman-gluetun.service
   atftpd.service
   tailscaled.service
   gateway-state-backup.timer
@@ -129,10 +130,13 @@ check_dns_record wildcard-gateway-validation.h "$HOST_IP"
 printf 'Checking Traefik and Technitium local HTTP endpoints...\n'
 wait_for_remote "Traefik dashboard web route failed" "curl -fsS -H 'Host: traefik.h' http://127.0.0.1/dashboard/ >/dev/null"
 wait_for_remote "Traefik dashboard route failed" "curl -fsS http://127.0.0.1:8080/dashboard/ >/dev/null"
-wait_for_remote "Traefik metrics endpoint failed" "curl -fsS http://127.0.0.1:8080/metrics | grep -q '^traefik_'"
+wait_for_remote "Traefik metrics endpoint failed" "tmp=\$(mktemp); trap 'rm -f \"\$tmp\"' EXIT; curl -fsS -o \"\$tmp\" http://127.0.0.1:8080/metrics && grep -q '^traefik_' \"\$tmp\""
 wait_for_remote "Jellyfin route failed" "curl -fsS -o /dev/null -H 'Host: jellyfin.h' http://127.0.0.1/"
 wait_for_remote "Kavita route failed" "curl -fsS -o /dev/null -H 'Host: kavita.h' http://127.0.0.1/"
 wait_for_remote "Technitium route failed" "curl -fsS -H 'Host: technitium.h' http://127.0.0.1/ >/dev/null"
+
+printf 'Checking Gluetun LAN HTTP proxy...\n'
+wait_for_remote "Gluetun HTTP proxy failed" "curl -fsS --proxy http://${HOST_IP}:8888 https://ipinfo.io/ip >/dev/null"
 
 printf 'Running gateway state backup and restore validation...\n'
 ssh_gateway_vm "sudo systemctl start gateway-state-backup.service" || die "gateway-state-backup.service failed"

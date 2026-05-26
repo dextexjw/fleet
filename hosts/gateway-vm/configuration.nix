@@ -59,6 +59,7 @@ in
   imports = [
     ../common.nix
     ./hardware-configuration.nix
+    ../../modules/gateway/gluetun.nix
     ../../modules/gateway/netbird.nix
     ../../modules/gateway/netbootxyz.nix
     ../../modules/gateway/state-backup.nix
@@ -73,7 +74,7 @@ in
 
   networking.hostName = "gateway-vm";
   networking.domain = host.domain;
-  users.motd = "gateway-vm: Traefik ingress, Technitium DNS, netboot.xyz, NetBird, and Tailscale";
+  users.motd = "gateway-vm: Traefik ingress, Technitium DNS, Gluetun VPN proxy, netboot.xyz, NetBird, and Tailscale";
 
   # ============================================================================
   # SECRETS
@@ -85,6 +86,12 @@ in
     secrets = {
       admin-password-hash = {
         neededForUsers = true;
+      };
+      gluetun-openvpn-password = {
+        restartUnits = [ "podman-gluetun.service" ];
+      };
+      gluetun-openvpn-username = {
+        restartUnits = [ "podman-gluetun.service" ];
       };
       restic-password = {
         restartUnits = [ "gateway-state-backup.service" ];
@@ -113,6 +120,13 @@ in
   # ============================================================================
   # SERVICES
   # ============================================================================
+
+  fleet.gateway.gluetun = {
+    bindAddress = host.ip;
+    enable = true;
+    openvpnPasswordFile = config.sops.secrets.gluetun-openvpn-password.path;
+    openvpnUsernameFile = config.sops.secrets.gluetun-openvpn-username.path;
+  };
 
   fleet.gateway.netbird = {
     enable = false;
@@ -264,9 +278,9 @@ in
     gateway-vm service model
     ========================
 
-    gateway-vm is scoped to Traefik, Technitium, netboot.xyz, NetBird, and
-    Tailscale. Prometheus, Grafana, Jenkins, nginx reverse proxy, and node
-    exporter are intentionally not enabled on this host.
+    gateway-vm is scoped to Traefik, Technitium, Gluetun, netboot.xyz,
+    NetBird, and Tailscale. Prometheus, Grafana, Jenkins, nginx reverse proxy,
+    and node exporter are intentionally not enabled on this host.
 
     Homelab host domain:
       *.${domain}
@@ -277,6 +291,7 @@ in
     Declared services:
       Traefik: traefik.service, version 3.7.1, ingress ports 80 and optional 443, dashboard and metrics port 8080, JSON access logs in the service journal
       Technitium: technitium-dns-server.service, version 15.2.0, state /srv/appsdata/technitium-dns-server, admin HTTP on ${host.ip}:5380 and http://technitium.${serviceDomain}
+      Gluetun: podman-gluetun.service, PIA OpenVPN container, state /srv/appsdata/gluetun, unauthenticated LAN HTTP proxy on ${host.ip}:8888
       netboot.xyz: atftpd.service, TFTP root /srv/netbootxyz, boot file netboot.xyz.efi
       NetBird: disabled for now, state preserved at /srv/appsdata/netbird
       Tailscale: tailscaled.service, state /srv/appsdata/tailscale
@@ -324,6 +339,7 @@ in
     Post-deploy validation:
       systemctl is-active traefik.service
       systemctl is-active technitium-dns-server.service
+      systemctl is-active podman-gluetun.service
       systemctl is-active atftpd.service
       systemctl is-active tailscaled.service
       systemctl is-active gateway-state-backup.timer
@@ -331,8 +347,9 @@ in
 
     Recovery notes:
       Restic backs up /srv/appsdata to /mnt/backup/restic/appdata/gateway-vm
-      using /run/secrets/restic-password. Technitium, NetBird, and Tailscale
-      keep upstream-compatible bind mounts from /srv/appsdata/<service_name>.
+      using /run/secrets/restic-password. Gluetun stores state directly under
+      /srv/appsdata/gluetun; Technitium, NetBird, and Tailscale keep
+      upstream-compatible bind mounts from /srv/appsdata/<service_name>.
 
       Non-destructive validation:
         mount /mnt/backup
@@ -350,12 +367,12 @@ in
 
       Restore outline:
         1. Deploy gateway-vm once to create users, secrets, mounts, and units.
-        2. Stop Technitium, NetBird, and Tailscale before replacing state.
+        2. Stop Technitium, Gluetun, NetBird, and Tailscale before replacing state.
         3. Mount /mnt/backup.
         4. Choose a gateway-vm/appsdata snapshot ID.
         5. Restore the snapshot to / with restic --verify.
         6. Run systemd-tmpfiles --create.
-        7. Restart technitium-dns-server.service, netbird.service, and tailscaled.service.
+        7. Restart technitium-dns-server.service, podman-gluetun.service, netbird.service, and tailscaled.service.
 
       Keep auth keys in encrypted secrets only; do not write them into Nix
       files, generated configs, recovery notes, logs, or chat.

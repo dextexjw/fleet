@@ -155,6 +155,7 @@ in
 
     systemd.tmpfiles.rules = [
       "d ${appdata} 0755 root root - -"
+      "d ${appdata}/gluetun 0700 root root - -"
       "d ${appdata}/netbird 0700 root root - -"
       "d ${appdata}/tailscale 0700 root root - -"
       "d ${appdata}/technitium-dns-server 0755 root root - -"
@@ -323,7 +324,7 @@ in
           exit 1
         fi
 
-        for service_dir in netbird tailscale technitium-dns-server; do
+        for service_dir in gluetun netbird tailscale technitium-dns-server; do
           if [ ! -d "$restored_source/$service_dir" ]; then
             echo "restore completed but $restored_source/$service_dir is missing"
             exit 1

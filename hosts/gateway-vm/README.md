@@ -1,7 +1,7 @@
 # gateway-vm
 
-`gateway-vm` runs Traefik ingress, Technitium DNS, netboot.xyz, NetBird, and
-Tailscale.
+`gateway-vm` runs Traefik ingress, Technitium DNS, Gluetun, netboot.xyz,
+NetBird, and Tailscale.
 
 Fleet inventory lives in `../../hosts.nix`. Host configuration lives in
 `configuration.nix` and imports service modules from `../../modules/gateway/`.
@@ -22,6 +22,7 @@ Important host values:
 
 State paths:
 
+- `/srv/appsdata/gluetun`
 - `/srv/appsdata/technitium-dns-server`
 - `/srv/appsdata/netbird`
 - `/srv/appsdata/tailscale`
@@ -42,6 +43,7 @@ Direct service ports:
 - DNS-over-TLS: `10.2.20.112:853`
 - Technitium admin HTTP: `http://10.2.20.112:5380`
 - Technitium HTTPS and DNS-over-HTTPS: `https://10.2.20.112:53443`
+- Gluetun HTTP proxy: `http://10.2.20.112:8888`
 - netboot.xyz TFTP: `10.2.20.112:69/udp`, boot file `netboot.xyz.efi`
 - NetBird: disabled for now; state preserved at `/srv/appsdata/netbird`
 - Tailscale: `10.2.20.112:41641/udp`
@@ -56,8 +58,14 @@ Gateway Traefik module but should only be enabled after an OTLP collector
 endpoint is available.
 
 `gateway-vm` intentionally pins Traefik to the upstream `3.7.1` Linux AMD64
-release artifact and Technitium DNS to the upstream `15.2.0` source release
+release artifact, Technitium DNS to the upstream `15.2.0` source release, and
+Gluetun to `ghcr.io/qdm12/gluetun@sha256:2f33c71e5e164fcd51a962cb950134df25155593edf0c3e1201f888d027049b4`
 while the rest of the fleet remains on the locked `nixpkgs` package set.
+
+Gluetun uses Private Internet Access over OpenVPN. The HTTP proxy is exposed on
+the LAN without separate proxy authentication; access is controlled by LAN
+reachability and the host firewall. PIA VPN port forwarding and fixed region
+selection are disabled for now.
 
 Technitium serves the `.h` service zone. Wildcard DNS resolves `*.h` to
 `gateway-vm` at `10.2.20.112`, where Traefik routes known hostnames to their
@@ -103,6 +111,8 @@ does not take over DHCP for the subnet.
 Required secrets:
 
 - `admin-password-hash`
+- `gluetun-openvpn-username`
+- `gluetun-openvpn-password`
 - `smb-credentials`
 - `restic-password`
 - `technitium-admin-username`
@@ -150,7 +160,7 @@ The bootstrap phases are resumable:
 - `enable-vm-secret-access`: captures the gateway SSH host key, adds the age recipient to `.sops.yaml`, and runs `sops updatekeys`.
 - `dry-activate-gateway-vm`: validates the activation plan with `colmena apply --on gateway-vm dry-activate`.
 - `deploy-gateway-vm`: runs the guarded gateway deployment.
-- `verify-gateway-vm`: confirms hostnames, service health, listener ports, Traefik routes, and Restic backup/restore validation.
+- `verify-gateway-vm`: confirms hostnames, service health, listener ports, Traefik routes, Gluetun proxy egress, and Restic backup/restore validation.
 
 Individual phases:
 
@@ -179,7 +189,7 @@ The wrapper runs these phases in order:
 - `create-pre-upgrade-backup`: starts a gateway appdata Restic backup and lists the latest matching snapshots.
 - `dry-activate-gateway-vm`: validates the activation plan with `colmena apply --on gateway-vm dry-activate`.
 - `deploy-gateway-vm`: runs the guarded `gateway-vm` deployment and normalizes the transient hostname.
-- `verify-gateway-vm`: confirms service health, listener ports, Traefik routes, DNS records, backup/restore validation, and tmpfiles declarations.
+- `verify-gateway-vm`: confirms service health, listener ports, Traefik routes, DNS records, Gluetun proxy egress, backup/restore validation, and tmpfiles declarations.
 
 The upgrade workflow never restores appdata automatically. Use the restore
 workflow only when recovering from a failed host or bad application state.
@@ -239,8 +249,8 @@ Post-deploy validation:
 scripts/gateway-vm/test-gateway-services.sh
 ```
 
-That script verifies service health, listener ports, Traefik routes, and
-gateway state backup/restore validation.
+That script verifies service health, listener ports, Traefik routes, Gluetun
+proxy egress, and gateway state backup/restore validation.
 
 Lower-level backup and restore validation on `gateway-vm` for debugging:
 
@@ -254,12 +264,12 @@ systemctl status gateway-state-backup.service gateway-state-restore-check.servic
 Restore outline:
 
 1. Deploy `gateway-vm` once to create users, secrets, mounts, and units.
-2. Stop Technitium, NetBird, and Tailscale before replacing state.
+2. Stop Technitium, Gluetun, NetBird, and Tailscale before replacing state.
 3. Mount `/mnt/backup`.
 4. Choose a `gateway-vm` appdata snapshot ID.
 5. Restore the snapshot to `/` with `restic --verify`.
 6. Run `systemd-tmpfiles --create`.
-7. Restart `technitium-dns-server.service` and `tailscaled.service`; restart `netbird.service` too if NetBird is re-enabled.
+7. Restart `technitium-dns-server.service`, `podman-gluetun.service`, and `tailscaled.service`; restart `netbird.service` too if NetBird is re-enabled.
 
 The same service and recovery model is generated on `gateway-vm` at
 `/etc/fleet/gateway-vm.md`. Keep this README and the generated recovery notes
@@ -272,6 +282,7 @@ Check service status through Colmena:
 ```sh
 colmena exec --on gateway-vm -- systemctl status traefik
 colmena exec --on gateway-vm -- systemctl status technitium-dns-server
+colmena exec --on gateway-vm -- systemctl status podman-gluetun
 colmena exec --on gateway-vm -- systemctl status atftpd
 colmena exec --on gateway-vm -- systemctl status tailscaled
 colmena exec --on gateway-vm -- systemctl status gateway-state-backup.timer

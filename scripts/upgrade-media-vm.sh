@@ -16,7 +16,7 @@ KEY_SERVICES=(
   bazarr
   qbittorrent
   sabnzbd
-  jellyseerr
+  seerr
   flaresolverr
 )
 

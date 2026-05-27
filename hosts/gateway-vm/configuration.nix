@@ -271,10 +271,10 @@ in
             icon = "sabnzbd.png";
           }
           {
-            name = "Jellyseerr";
+            name = "Seerr";
             description = "Media requests\nhttp://${hosts.media-vm.ip}:5055";
-            href = "http://jellyseerr.${serviceDomain}/";
-            icon = "jellyseerr.png";
+            href = "http://seerr.${serviceDomain}/";
+            icon = "seerr.png";
           }
         ];
       }
@@ -367,9 +367,9 @@ in
         host = "jellyfin.${serviceDomain}";
         url = "http://${hosts.media-vm.ip}:8096";
       };
-      jellyseerr = {
-        description = "Jellyseerr requests";
-        host = "jellyseerr.${serviceDomain}";
+      seerr = {
+        description = "Seerr requests";
+        host = "seerr.${serviceDomain}";
         url = "http://${hosts.media-vm.ip}:5055";
       };
       gluetun = {
@@ -507,7 +507,7 @@ in
       http://bazarr.${serviceDomain}
       http://qbittorrent.${serviceDomain}
       http://sabnzbd.${serviceDomain}
-      http://jellyseerr.${serviceDomain}
+      http://seerr.${serviceDomain}
 
     Network boot:
       Configure the LAN DHCP server to point option 66 at ${hosts.gateway-vm.ip}

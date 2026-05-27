@@ -187,5 +187,6 @@ backup, restore, or recovery behavior changes.
 - The base firewall opens SSH and service modules open their own required ports.
 - `gateway-vm` serves the declarative `.h` service zone in Technitium; clients
   must use `10.2.20.112` for DNS, or the LAN DNS/DHCP server must forward or
-  delegate `.h` to `10.2.20.112`, before browser URLs like `traefik.h` will
-  resolve. VM hostnames stay under `home.arpa` and are managed separately.
+  delegate `.h` to `10.2.20.112` on DNS port 53, before browser URLs like
+  `traefik.h` will resolve. Technitium's `5380` port is only the admin HTTP UI.
+  VM hostnames stay under `home.arpa` and are managed separately.

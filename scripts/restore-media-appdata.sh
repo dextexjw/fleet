@@ -6,7 +6,7 @@ HOST="media-vm"
 REPOSITORY="/mnt/backups/restic/appdata/media-stack-vm"
 SOURCE="/srv/appsdata"
 TAG="appsdata"
-SERVICES="jellyfin audiobookshelf kavita radarr sonarr prowlarr bazarr qbittorrent sabnzbd jellyseerr flaresolverr"
+SERVICES="jellyfin audiobookshelf kavita radarr sonarr prowlarr bazarr qbittorrent sabnzbd seerr flaresolverr"
 SNAPSHOT="${1:-}"
 
 die() {
@@ -127,7 +127,10 @@ fi
 [ -d "\$source_path/bazarr" ] && chown -R bazarr:media "\$source_path/bazarr"
 [ -d "\$source_path/qbittorrent" ] && chown -R qbittorrent:media "\$source_path/qbittorrent"
 [ -d "\$source_path/sabnzbd" ] && chown -R sabnzbd:media "\$source_path/sabnzbd"
-[ -d "\$source_path/jellyseerr" ] && chown -R jellyseerr:media "\$source_path/jellyseerr"
+if [ -d "\$source_path/jellyseerr" ] && [ ! -e "\$source_path/seerr" ]; then
+  mv "\$source_path/jellyseerr" "\$source_path/seerr"
+fi
+[ -d "\$source_path/seerr" ] && chown -R seerr:media "\$source_path/seerr"
 [ -d "\$source_path/flaresolverr" ] && chown -R root:media "\$source_path/flaresolverr"
 [ -d "\$source_path/monitoring" ] && chown -R root:media "\$source_path/monitoring"
 find "\$source_path" -type f \( -name '*.pid' -o -name 'plexmediaserver.pid' \) -delete

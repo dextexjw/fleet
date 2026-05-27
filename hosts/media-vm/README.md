@@ -38,7 +38,7 @@ under `/srv/appsdata`, which is the restore-critical path backed up by Restic.
 | Bazarr | `http://10.2.20.113:6767` |
 | qBittorrent | `http://10.2.20.113:8080` |
 | SABnzbd | `http://10.2.20.113:8085` |
-| Jellyseerr | `http://10.2.20.113:5055` |
+| Seerr | `http://10.2.20.113:5055` |
 
 FlareSolverr listens on `8191` for app integration and is not opened in the
 firewall.
@@ -54,7 +54,7 @@ Traefik routes are declared on `gateway-vm` for:
 - `bazarr.h`
 - `qbittorrent.h`
 - `sabnzbd.h`
-- `jellyseerr.h`
+- `seerr.h`
 
 ## State and Media Paths
 
@@ -69,9 +69,14 @@ Appdata paths:
 - `/srv/appsdata/bazarr`
 - `/srv/appsdata/qbittorrent`
 - `/srv/appsdata/sabnzbd`
-- `/srv/appsdata/jellyseerr`
+- `/srv/appsdata/seerr`
 - `/srv/appsdata/flaresolverr`
 - `/srv/appsdata/monitoring`
+
+Seerr uses `/srv/appsdata/seerr`. The declarative service migration moves
+legacy `/srv/appsdata/jellyseerr` contents there when `/srv/appsdata/seerr` is
+empty, and the restore helper applies the same path normalization for older
+snapshots.
 
 Media library paths:
 
@@ -286,7 +291,7 @@ Destructive full restore outline:
 
 ```sh
 systemctl stop appsdata-backup.timer
-systemctl stop jellyfin audiobookshelf kavita radarr sonarr prowlarr bazarr qbittorrent sabnzbd jellyseerr flaresolverr
+systemctl stop jellyfin audiobookshelf kavita radarr sonarr prowlarr bazarr qbittorrent sabnzbd seerr flaresolverr
 ```
 
 2. Mount the backup share.
@@ -323,7 +328,7 @@ RESTIC_REPOSITORY=/mnt/backups/restic/appdata/media-stack-vm \
 ```sh
 systemd-tmpfiles --create
 systemctl restart kavita-token-key.service
-systemctl start jellyfin audiobookshelf kavita radarr sonarr prowlarr bazarr qbittorrent sabnzbd jellyseerr flaresolverr
+systemctl start jellyfin audiobookshelf kavita radarr sonarr prowlarr bazarr qbittorrent sabnzbd seerr flaresolverr
 systemctl start appsdata-backup.timer
 systemctl start appsdata-restore-check.service
 ```

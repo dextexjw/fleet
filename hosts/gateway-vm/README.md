@@ -97,7 +97,8 @@ Technitium serves the `.h` service zone. Wildcard DNS resolves `*.h` to
 backends.
 VM hostnames stay under `home.arpa` and are managed outside this Gateway
 service zone. Clients must use `10.2.20.112` as DNS, or the LAN DNS/DHCP server
-must forward/delegate `.h` to `10.2.20.112`, for these names to resolve.
+must forward/delegate `.h` to `10.2.20.112` on DNS port 53, for these names to
+resolve. Technitium's `5380` port is only the admin HTTP UI.
 
 If a browser shows `DNS_PROBE_FINISHED_NXDOMAIN` for a `.h` name, confirm
 whether the client is asking Gateway DNS:
@@ -108,9 +109,9 @@ dig @10.2.20.112 gluetun.h
 ```
 
 The first command must query `10.2.20.112`, or the LAN DNS server must have a
-conditional forward/delegation for `.h` to `10.2.20.112`. A temporary
-single-client workaround is adding `10.2.20.112 gluetun.h` to that client's
-hosts file.
+conditional forward/delegation for `.h` to `10.2.20.112` on DNS port 53. A
+temporary single-client workaround is adding `10.2.20.112 gluetun.h` to that
+client's hosts file.
 
 Traefik ingress routes are declared explicitly for:
 
@@ -128,7 +129,7 @@ Traefik ingress routes are declared explicitly for:
 - `bazarr.h`
 - `qbittorrent.h`
 - `sabnzbd.h`
-- `jellyseerr.h`
+- `seerr.h`
 
 For netboot.xyz, configure the LAN DHCP server to point option 66 at
 `10.2.20.112` and option 67 at `netboot.xyz.efi`. `gateway-vm` serves the

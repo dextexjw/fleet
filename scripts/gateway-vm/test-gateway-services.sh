@@ -170,7 +170,7 @@ else
 fi
 
 printf 'Checking Homepage generated config...\n'
-homepage_checks="grep -Fq 'homepage.h' /etc/homepage-dashboard/services.yaml && grep -Fq '10.2.20.112:8082' /etc/homepage-dashboard/services.yaml && grep -Fq 'jellyfin.h' /etc/homepage-dashboard/services.yaml && grep -Fq '10.2.20.113:8096' /etc/homepage-dashboard/services.yaml"
+homepage_checks="grep -Fq 'target: _blank' /etc/homepage-dashboard/settings.yaml && grep -Fq 'homepage.h' /etc/homepage-dashboard/services.yaml && grep -Fq '10.2.20.112:8082' /etc/homepage-dashboard/services.yaml && grep -Fq 'jellyfin.h' /etc/homepage-dashboard/services.yaml && grep -Fq '10.2.20.113:8096' /etc/homepage-dashboard/services.yaml"
 if [[ "$CHECK_NETBOOTXYZ" == 1 ]]; then
   homepage_checks="$homepage_checks && grep -Fq 'netbootxyz.h' /etc/homepage-dashboard/services.yaml"
 fi

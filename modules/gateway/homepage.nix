@@ -65,6 +65,13 @@ in
       example = "homepage.h";
     };
 
+    linkTarget = mkOption {
+      type = types.str;
+      default = "_self";
+      description = "Browser target used when opening Homepage service card links.";
+      example = "_blank";
+    };
+
     listenPort = mkOption {
       type = types.port;
       default = 8082;
@@ -152,7 +159,7 @@ in
       settings = {
         description = "Declarative service directory for gateway-vm.";
         disableUpdateCheck = true;
-        target = "_self";
+        target = cfg.linkTarget;
         title = "Gateway";
       };
     };

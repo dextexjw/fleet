@@ -173,6 +173,7 @@ in
     directAddress = host.ip;
     enable = true;
     host = "homepage.${serviceDomain}";
+    linkTarget = "_blank";
     listenPort = 8082;
     openFirewall = true;
     package = homepage-dashboard_1_13_1;

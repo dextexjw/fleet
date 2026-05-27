@@ -52,6 +52,12 @@ in
       example = "10.2.20.112";
     };
 
+    customCSS = mkOption {
+      type = types.lines;
+      default = "";
+      description = "Custom CSS for Homepage.";
+    };
+
     host = mkOption {
       type = types.str;
       default = "homepage.h";
@@ -137,6 +143,7 @@ in
   config = mkIf cfg.enable {
     services.homepage-dashboard = {
       allowedHosts = allowedHosts;
+      customCSS = cfg.customCSS;
       enable = true;
       listenPort = cfg.listenPort;
       openFirewall = cfg.openFirewall;

@@ -292,12 +292,6 @@ in
             href = "http://${host.ip}:5380/";
             icon = "technitium.png";
           }
-          {
-            name = "Technitium Direct IP";
-            description = "Direct Technitium HTTPS\nDNS-over-HTTPS listener";
-            href = "https://${host.ip}:53443/";
-            icon = "technitium.png";
-          }
         ];
       }
     ];

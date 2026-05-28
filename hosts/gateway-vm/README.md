@@ -137,6 +137,7 @@ Traefik ingress routes are declared explicitly for:
 - `sonarr.h`
 - `radarr.h`
 - `prowlarr.h`
+- `readarr.h`
 - `bazarr.h`
 - `qbittorrent.h`
 - `media-gluetun.h`

@@ -82,12 +82,63 @@ let
     "${appdata}/seerr"
   ];
 
-  sabnzbdConfig = pkgs.writeText "sabnzbd.ini" ''
-    [misc]
-    host = 0.0.0.0
-    port = ${toString cfg.ports.sabnzbd}
-    download_dir = ${cfg.downloads.incomplete}
-    complete_dir = ${cfg.downloads.usenet}
+  sabnzbdConfigScript = pkgs.writeShellScript "configure-sabnzbd" ''
+    set -euo pipefail
+
+    exec ${pkgs.python3.withPackages (pythonPackages: [ pythonPackages.configobj ])}/bin/python3 - <<'PY'
+    import os
+    import pathlib
+    import pwd
+    import grp
+    import tempfile
+
+    from configobj import ConfigObj
+
+    config_file = pathlib.Path(${builtins.toJSON "${appdata}/sabnzbd/sabnzbd.ini"})
+    managed_misc = {
+        "host": "0.0.0.0",
+        "port": ${builtins.toJSON (toString cfg.ports.sabnzbd)},
+        "download_dir": ${builtins.toJSON (toString cfg.downloads.incomplete)},
+        "complete_dir": ${builtins.toJSON (toString cfg.downloads.usenet)},
+    }
+    required_host = "sabnzbd.h"
+
+    config_file.parent.mkdir(parents=True, exist_ok=True)
+    config = ConfigObj(str(config_file), encoding="UTF8") if config_file.exists() else ConfigObj(encoding="UTF8")
+    if "misc" not in config:
+        config["misc"] = {}
+
+    misc = config["misc"]
+    for key, value in managed_misc.items():
+        misc[key] = value
+
+    host_whitelist = misc.get("host_whitelist", "")
+    if isinstance(host_whitelist, list):
+        hosts = [str(host).strip() for host in host_whitelist]
+    else:
+        hosts = [host.strip() for host in str(host_whitelist).split(",")]
+    hosts = [host for host in hosts if host]
+    if required_host not in hosts:
+        hosts.append(required_host)
+    misc["host_whitelist"] = ",".join(hosts)
+
+    uid = pwd.getpwnam("sabnzbd").pw_uid
+    gid = grp.getgrnam("media").gr_gid
+    fd, tmp_name = tempfile.mkstemp(prefix=".sabnzbd.ini.", dir=config_file.parent)
+    os.close(fd)
+    try:
+        config.filename = tmp_name
+        config.write()
+        if os.geteuid() == 0:
+            os.chown(tmp_name, uid, gid)
+        os.chmod(tmp_name, 0o640)
+        os.replace(tmp_name, config_file)
+    finally:
+        try:
+            os.unlink(tmp_name)
+        except FileNotFoundError:
+            pass
+    PY
   '';
 
   qbittorrentConfigScript = pkgs.writeShellScript "configure-qbittorrent" ''
@@ -211,8 +262,8 @@ in
       default = {
         incomplete = "/mnt/media/downloads/in-progress";
         root = "/mnt/media/downloads";
-        torrents = "/mnt/media/downloads/downloads";
-        usenet = "/mnt/media/downloads/downloads";
+        torrents = "/mnt/media/downloads/completed";
+        usenet = "/mnt/media/downloads/completed";
       };
       description = "Download paths for torrent and Usenet clients.";
     };
@@ -227,6 +278,7 @@ in
         prowlarr = 9696;
         qbittorrent = 8080;
         radarr = 7878;
+        readarr = 8787;
         sabnzbd = 8085;
         seerr = 5055;
         sonarr = 8989;
@@ -456,6 +508,11 @@ in
     users.users.kavita.extraGroups = [ "media" ];
 
     systemd.tmpfiles.rules = map (path: "d '${path}' 0770 root media - -") appsdataDirs;
+    systemd.tmpfiles.settings."10-prowlarr"."${appdata}/prowlarr".d = {
+      group = mkForce "nogroup";
+      mode = mkForce "0700";
+      user = mkForce "nobody";
+    };
 
     # --------------------------------------------------------------------------
     # SMB MOUNTS
@@ -576,6 +633,14 @@ in
       enable = true;
       dataDir = "${appdata}/prowlarr";
       settings.server.port = cfg.ports.prowlarr;
+    };
+
+    services.readarr = {
+      enable = true;
+      user = "readarr";
+      group = "media";
+      dataDir = "${appdata}/readarr";
+      settings.server.port = cfg.ports.readarr;
     };
 
     services.bazarr = {
@@ -761,6 +826,9 @@ in
       sonarr.after = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
       prowlarr.requires = [ "${utils.escapeSystemdPath "/var/lib/private/prowlarr"}.mount" ];
       prowlarr.after = [ "${utils.escapeSystemdPath "/var/lib/private/prowlarr"}.mount" ];
+      prowlarr.serviceConfig.StateDirectoryMode = mkForce "0700";
+      readarr.requires = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
+      readarr.after = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
       bazarr.requires = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
       bazarr.after = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
       sabnzbd.requires = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
@@ -858,11 +926,7 @@ EOF
       };
 
       sabnzbd = {
-        preStart = ''
-          if [ ! -f '${appdata}/sabnzbd/sabnzbd.ini' ]; then
-            install -m 0640 ${sabnzbdConfig} '${appdata}/sabnzbd/sabnzbd.ini'
-          fi
-        '';
+        preStart = "${sabnzbdConfigScript}";
         serviceConfig.StateDirectory = mkForce "";
       };
 
@@ -1091,6 +1155,7 @@ EOF
       cfg.ports.prowlarr
       cfg.ports.qbittorrent
       cfg.ports.radarr
+      cfg.ports.readarr
       cfg.ports.sabnzbd
       cfg.ports.seerr
       cfg.ports.sonarr
@@ -1106,7 +1171,7 @@ EOF
 
       Restore /srv/appsdata after reinstalling this NixOS host, before first
       use of Jellyfin, Audiobookshelf, Kavita, ARR apps, qBittorrent, Gluetun,
-      SABnzbd, or Seerr. The first activation creates /run/secrets/restic-password,
+      SABnzbd, or Seerr. Readarr stores state in /srv/appsdata/readarr. The first activation creates /run/secrets/restic-password,
       /mnt/backups, Restic, users/groups, and service units needed for restore.
 
       Media files under /mnt/media are mounted from SMB and are not included in
@@ -1146,7 +1211,8 @@ EOF
              scripts/restore-media-appdata.sh
         3. The script stops media services, mounts /mnt/backups, checks for
            media-vm/appsdata snapshots, moves fresh appdata aside, repairs
-           restored ownership, reapplies tmpfiles, and restarts media services.
+           restored ownership, reapplies tmpfiles, fixes Prowlarr DynamicUser
+           ownership, and restarts media services.
         4. If multiple snapshots exist, rerun with an explicit snapshot ID:
              scripts/restore-media-appdata.sh <snapshot-id>
         5. If no matching snapshot exists, the script starts media services and
@@ -1160,6 +1226,8 @@ EOF
         4. Move existing /srv/appsdata aside, then restore the chosen snapshot
            to / with restic --verify.
         5. Normalize ownership for rebuilt users and run systemd-tmpfiles --create.
+           Keep /srv/appsdata/prowlarr owned by nobody:nogroup with mode 0700
+           so the Prowlarr DynamicUser idmapped bind mount can access SQLite.
         6. Restart media-gluetun-control-auth-config.service,
            kavita-token-key.service, media services, appsdata-backup.timer,
            and appsdata-restore-check.service.
@@ -1171,8 +1239,9 @@ EOF
 
       First-run setup is available at http://10.2.20.113:8096/web/index.html#!/wizardstart.html.
       Complete it in a browser before connecting native Jellyfin clients.
-      Audiobookshelf is available at http://10.2.20.113:8000, and Kavita is
-      available at http://10.2.20.113:5000. qBittorrent is available through
+      Audiobookshelf is available at http://10.2.20.113:8000, Kavita is
+      available at http://10.2.20.113:5000, Readarr is available at
+      http://10.2.20.113:8787, and qBittorrent is available through
       MediaVM Gluetun at http://10.2.20.113:8080, and the MediaVM Gluetun WebUI
       is available at http://10.2.20.113:3001 and, through Gateway Traefik,
       http://media-gluetun.h.

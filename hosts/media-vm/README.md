@@ -35,6 +35,7 @@ under `/srv/appsdata`, which is the restore-critical path backed up by Restic.
 | Radarr | `http://10.2.20.113:7878` |
 | Sonarr | `http://10.2.20.113:8989` |
 | Prowlarr | `http://10.2.20.113:9696` |
+| Readarr | `http://10.2.20.113:8787` |
 | Bazarr | `http://10.2.20.113:6767` |
 | qBittorrent through MediaVM Gluetun | `http://10.2.20.113:8080` |
 | MediaVM Gluetun WebUI | `http://10.2.20.113:3001` |
@@ -52,6 +53,7 @@ Traefik routes are declared on `gateway-vm` for:
 - `sonarr.h`
 - `radarr.h`
 - `prowlarr.h`
+- `readarr.h`
 - `bazarr.h`
 - `qbittorrent.h`
 - `sabnzbd.h`
@@ -76,6 +78,7 @@ Appdata paths:
 - `/srv/appsdata/radarr`
 - `/srv/appsdata/sonarr`
 - `/srv/appsdata/prowlarr`
+- `/srv/appsdata/readarr`
 - `/srv/appsdata/bazarr`
 - `/srv/appsdata/qbittorrent`
 - `/srv/appsdata/sabnzbd`
@@ -318,7 +321,7 @@ Destructive full restore outline:
 
 ```sh
 systemctl stop appsdata-backup.timer
-systemctl stop jellyfin audiobookshelf kavita radarr sonarr prowlarr bazarr podman-media-gluetun-webui podman-media-qbittorrent podman-media-gluetun sabnzbd seerr flaresolverr
+systemctl stop jellyfin audiobookshelf kavita radarr sonarr prowlarr readarr bazarr podman-media-gluetun-webui podman-media-qbittorrent podman-media-gluetun sabnzbd seerr flaresolverr
 ```
 
 2. Mount the backup share.
@@ -349,14 +352,15 @@ RESTIC_REPOSITORY=/mnt/backups/restic/appdata/media-stack-vm \
     --verify
 ```
 
-5. Reapply declared directories, normalize ownership for rebuilt users, restart
-   services, and validate.
+5. Reapply declared directories, normalize ownership for rebuilt users, keep
+   `/srv/appsdata/prowlarr` owned by `nobody:nogroup` with mode `0700` for the
+   Prowlarr DynamicUser bind mount, restart services, and validate.
 
 ```sh
 systemd-tmpfiles --create
 systemctl restart media-gluetun-control-auth-config.service
 systemctl restart kavita-token-key.service
-systemctl start jellyfin audiobookshelf kavita radarr sonarr prowlarr bazarr podman-media-gluetun podman-media-qbittorrent podman-media-gluetun-webui sabnzbd seerr flaresolverr
+systemctl start jellyfin audiobookshelf kavita radarr sonarr prowlarr readarr bazarr podman-media-gluetun podman-media-qbittorrent podman-media-gluetun-webui sabnzbd seerr flaresolverr
 systemctl start appsdata-backup.timer
 systemctl start appsdata-restore-check.service
 ```

@@ -247,6 +247,12 @@ in
             icon = "radarr.png";
           }
           {
+            name = "Readarr";
+            description = "Book management\nhttp://${hosts.media-vm.ip}:8787";
+            href = "http://readarr.${serviceDomain}/";
+            icon = "readarr.png";
+          }
+          {
             name = "Prowlarr";
             description = "Indexer management\nhttp://${hosts.media-vm.ip}:9696";
             href = "http://prowlarr.${serviceDomain}/";
@@ -419,6 +425,11 @@ in
         host = "radarr.${serviceDomain}";
         url = "http://${hosts.media-vm.ip}:7878";
       };
+      readarr = {
+        description = "Readarr book management";
+        host = "readarr.${serviceDomain}";
+        url = "http://${hosts.media-vm.ip}:8787";
+      };
       sabnzbd = {
         description = "SABnzbd downloads";
         host = "sabnzbd.${serviceDomain}";
@@ -518,6 +529,7 @@ in
       http://kavita.${serviceDomain}
       http://sonarr.${serviceDomain}
       http://radarr.${serviceDomain}
+      http://readarr.${serviceDomain}
       http://prowlarr.${serviceDomain}
       http://bazarr.${serviceDomain}
       http://qbittorrent.${serviceDomain}

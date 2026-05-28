@@ -6,6 +6,10 @@ HOST="media-vm"
 HOST_IP="10.2.20.113"
 REPOSITORY="/mnt/backups/restic/appdata/media-stack-vm"
 SOURCE="/srv/appsdata"
+COMPLETED_DOWNLOADS="/mnt/media/downloads"
+INCOMPLETE_DOWNLOADS="/var/lib/media-downloads"
+QBITTORRENT_CONFIG="/srv/appsdata/qbittorrent/qBittorrent/qBittorrent.conf"
+SABNZBD_CONFIG="/srv/appsdata/sabnzbd/sabnzbd.ini"
 RUN_KILL_SWITCH=false
 
 die() {
@@ -45,6 +49,12 @@ command -v curl >/dev/null 2>&1 || die "curl is missing"
 
 cd "$ROOT"
 
+case "$INCOMPLETE_DOWNLOADS" in
+  "$SOURCE" | "$SOURCE"/*)
+    die "$INCOMPLETE_DOWNLOADS is inside the Restic appdata source $SOURCE"
+    ;;
+esac
+
 colmena exec --on "$HOST" -- "sh -lc 'findmnt -rn --target /mnt/backups >/dev/null || mount /mnt/backups'"
 colmena exec --on "$HOST" -- systemctl start appsdata-backup.service
 colmena exec --on "$HOST" -- systemctl start appsdata-restore-check.service
@@ -61,8 +71,17 @@ done
 curl -fsS "http://$HOST_IP:8080/" >/dev/null || die "qBittorrent WebUI is not reachable through MediaVM Gluetun"
 curl -fsS "http://$HOST_IP:3001/api/health" >/dev/null || die "MediaVM Gluetun WebUI health endpoint is not reachable"
 
+colmena exec --on "$HOST" -- "sh -lc 'test -d \"$INCOMPLETE_DOWNLOADS\" && test \"\$(stat -c \"%U:%G:%a\" \"$INCOMPLETE_DOWNLOADS\")\" = root:media:770'" \
+  || die "$INCOMPLETE_DOWNLOADS does not have expected root:media 0770 ownership"
+colmena exec --on "$HOST" -- "sh -lc 'grep -Fxq \"Downloads\\\\TempPath=$INCOMPLETE_DOWNLOADS\" \"$QBITTORRENT_CONFIG\" && grep -Fxq \"Downloads\\\\SavePath=$COMPLETED_DOWNLOADS\" \"$QBITTORRENT_CONFIG\"'" \
+  || die "qBittorrent config does not declare expected incomplete and completed download paths"
+colmena exec --on "$HOST" -- "sh -lc 'grep -Eq \"^download_dir[[:space:]]*=[[:space:]]*$INCOMPLETE_DOWNLOADS$\" \"$SABNZBD_CONFIG\" && grep -Eq \"^complete_dir[[:space:]]*=[[:space:]]*$COMPLETED_DOWNLOADS$\" \"$SABNZBD_CONFIG\"'" \
+  || die "SABnzbd config does not declare expected incomplete and completed download paths"
+
 colmena exec --on "$HOST" -- "sh -lc 'gluetun_id=\$(podman inspect --format \"{{.Id}}\" media-gluetun); network_mode=\$(podman inspect --format \"{{.HostConfig.NetworkMode}}\" media-qbittorrent); test \"\$network_mode\" = container:media-gluetun || test \"\$network_mode\" = \"container:\$gluetun_id\"'" \
   || die "media-qbittorrent is not sharing the media-gluetun network namespace"
+colmena exec --on "$HOST" -- "sh -lc 'podman inspect --format \"{{range .Mounts}}{{.Source}} {{.Destination}}{{println}}{{end}}\" media-qbittorrent | grep -Fxq \"$INCOMPLETE_DOWNLOADS $INCOMPLETE_DOWNLOADS\"'" \
+  || die "media-qbittorrent does not mount $INCOMPLETE_DOWNLOADS"
 colmena exec --on "$HOST" -- "sh -lc 'test \"\$(podman inspect --format \"{{json .HostConfig.PortBindings}}\" media-qbittorrent)\" = \"{}\"'" \
   || die "media-qbittorrent unexpectedly declares host port bindings"
 colmena exec --on "$HOST" -- "sh -lc 'podman port media-gluetun | grep -Fq \"8080/tcp\" && podman port media-gluetun | grep -Fq \"3001/tcp\"'" \

@@ -81,6 +81,9 @@ let
     "${appdata}/sabnzbd"
     "${appdata}/seerr"
   ];
+  downloadTempDirs = [
+    "${cfg.downloads.incomplete}"
+  ];
 
   sabnzbdConfigScript = pkgs.writeShellScript "configure-sabnzbd" ''
     set -euo pipefail
@@ -260,10 +263,10 @@ in
     downloads = mkOption {
       type = types.attrsOf types.path;
       default = {
-        incomplete = "/mnt/media/downloads/in-progress";
+        incomplete = "/var/lib/media-downloads";
         root = "/mnt/media/downloads";
-        torrents = "/mnt/media/downloads/completed";
-        usenet = "/mnt/media/downloads/completed";
+        torrents = "/mnt/media/downloads";
+        usenet = "/mnt/media/downloads";
       };
       description = "Download paths for torrent and Usenet clients.";
     };
@@ -507,7 +510,9 @@ in
 
     users.users.kavita.extraGroups = [ "media" ];
 
-    systemd.tmpfiles.rules = map (path: "d '${path}' 0770 root media - -") appsdataDirs;
+    systemd.tmpfiles.rules =
+      (map (path: "d '${path}' 0770 root media - -") appsdataDirs)
+      ++ (map (path: "d '${path}' 0770 root media - -") downloadTempDirs);
     systemd.tmpfiles.settings."10-prowlarr"."${appdata}/prowlarr".d = {
       group = mkForce "nogroup";
       mode = mkForce "0700";
@@ -737,6 +742,7 @@ in
 
         volumes = [
           "${appdata}/qbittorrent:/config"
+          "${cfg.downloads.incomplete}:${cfg.downloads.incomplete}"
           "${mediaRoot}:${mediaRoot}"
         ];
 
@@ -1176,6 +1182,12 @@ EOF
 
       Media files under /mnt/media are mounted from SMB and are not included in
       appsdata-backup.service.
+
+      qBittorrent and SABnzbd write incomplete downloads to
+      /var/lib/media-downloads on the local VM. Completed torrent and Usenet
+      downloads are moved to /mnt/media/downloads. The local incomplete download
+      directory is outside /srv/appsdata and is not included in Restic appdata
+      backups.
 
       Seerr uses /srv/appsdata/seerr. On deploy or restore, legacy
       /srv/appsdata/jellyseerr data is moved there when the new path is empty.

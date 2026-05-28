@@ -24,6 +24,8 @@ Important host values:
 
 Media files live on the NAS-mounted `/mnt/media` share. Application state lives
 under `/srv/appsdata`, which is the restore-critical path backed up by Restic.
+Incomplete downloader files live on local VM storage at
+`/var/lib/media-downloads`, outside the Restic appdata backup source.
 
 ## Service Access
 
@@ -102,8 +104,8 @@ Media library paths:
 - Books and Calibre: `/mnt/media/Books`
 - Comics: `/mnt/media/Comics`
 - PDFs: `/mnt/media/PDFs`
-- Downloads: `/mnt/media/downloads`
-- Incomplete downloads: `/mnt/media/downloads/in-progress`
+- Completed downloads: `/mnt/media/downloads`
+- Incomplete downloads: `/var/lib/media-downloads`
 
 ## Secrets
 

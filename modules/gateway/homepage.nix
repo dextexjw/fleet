@@ -169,7 +169,7 @@ in
         description = "Declarative service directory for gateway-vm.";
         disableUpdateCheck = true;
         target = cfg.linkTarget;
-        title = "Gateway";
+        title = "homepage.h";
       };
     };
 

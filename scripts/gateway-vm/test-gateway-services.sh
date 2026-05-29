@@ -175,7 +175,25 @@ else
 fi
 
 printf 'Checking Homepage generated config...\n'
-homepage_checks="grep -Fq 'target: _blank' /etc/homepage-dashboard/settings.yaml && grep -Fq 'homepage.h' /etc/homepage-dashboard/services.yaml && grep -Fq '10.2.20.112:8082' /etc/homepage-dashboard/services.yaml && grep -Fq 'jellyfin.h' /etc/homepage-dashboard/services.yaml && grep -Fq '10.2.20.113:8096' /etc/homepage-dashboard/services.yaml && grep -Fq 'media-gluetun.h' /etc/homepage-dashboard/services.yaml && grep -Fq '10.2.20.113:3001/api/health' /etc/homepage-dashboard/services.yaml && grep -Fq 'seerr.h' /etc/homepage-dashboard/services.yaml && grep -Fq '10.2.20.113:5055' /etc/homepage-dashboard/services.yaml"
+homepage_checks="grep -Fq 'target: _blank' /etc/homepage-dashboard/settings.yaml"
+homepage_checks="$homepage_checks && grep -Fq 'layout:' /etc/homepage-dashboard/settings.yaml"
+homepage_checks="$homepage_checks && grep -Fq 'Gateway:' /etc/homepage-dashboard/settings.yaml"
+homepage_checks="$homepage_checks && grep -Fq 'Productivity:' /etc/homepage-dashboard/settings.yaml"
+homepage_checks="$homepage_checks && grep -Fq 'Links:' /etc/homepage-dashboard/settings.yaml"
+homepage_checks="$homepage_checks && grep -Fq 'columns: 4' /etc/homepage-dashboard/settings.yaml"
+homepage_checks="$homepage_checks && grep -Fq 'columns: 3' /etc/homepage-dashboard/settings.yaml"
+homepage_checks="$homepage_checks && ! grep -Fq 'iconsOnly: true' /etc/homepage-dashboard/settings.yaml"
+homepage_checks="$homepage_checks && grep -Fq 'homepage.h' /etc/homepage-dashboard/services.yaml"
+homepage_checks="$homepage_checks && grep -Fq '10.2.20.112:8082' /etc/homepage-dashboard/services.yaml"
+homepage_checks="$homepage_checks && grep -Fq '127.0.0.1:8080/dashboard' /etc/homepage-dashboard/services.yaml"
+homepage_checks="$homepage_checks && grep -Fq 'jellyfin.h' /etc/homepage-dashboard/services.yaml"
+homepage_checks="$homepage_checks && grep -Fq '10.2.20.113:8096' /etc/homepage-dashboard/services.yaml"
+homepage_checks="$homepage_checks && grep -Fq 'media-gluetun.h' /etc/homepage-dashboard/services.yaml"
+homepage_checks="$homepage_checks && grep -Fq '10.2.20.113:3001/api/health' /etc/homepage-dashboard/services.yaml"
+homepage_checks="$homepage_checks && grep -Fq 'seerr.h' /etc/homepage-dashboard/services.yaml"
+homepage_checks="$homepage_checks && grep -Fq '10.2.20.113:5055' /etc/homepage-dashboard/services.yaml"
+homepage_checks="$homepage_checks && grep -Fq 'TorrentPeek' /etc/homepage-dashboard/bookmarks.yaml"
+homepage_checks="$homepage_checks && grep -Fq 'https://github.com/' /etc/homepage-dashboard/bookmarks.yaml"
 if [[ "$CHECK_NETBOOTXYZ" == 1 ]]; then
   homepage_checks="$homepage_checks && grep -Fq 'netbootxyz.h' /etc/homepage-dashboard/services.yaml"
 fi

@@ -58,12 +58,15 @@ Technitium admin HTTP is available directly at `http://10.2.20.112:5380` and
 through Traefik at `http://technitium.h/`.
 
 Homepage is declared in Nix and generated into `/etc/homepage-dashboard`. Its
-first-pass dashboard lists Gateway-owned `.h` routes, including MediaVM-backed
-routes that Traefik already proxies, plus direct Gateway IP URLs. The
-MediaVM Gluetun card uses Homepage's site monitor against
-`http://10.2.20.113:3001/api/health` so the dashboard can show the qBittorrent
-VPN WebUI health without requiring a browser hop first. It does not use service
-API widgets or mutable UI configuration in this pass.
+dashboard lists Gateway-owned `.h` routes, including MediaVM-backed routes that
+Traefik already proxies, plus direct Gateway IP URLs. Gateway, Media, and
+Productivity sections use row layouts with four cards per row. Homepage site
+monitors use direct backend URLs for the internal HTTP cards so status checks do
+not depend on browser routing through Traefik. A bottom `Links` bookmark section
+uses a compact three-column layout with icons and service names for external
+references such as TorrentPeek, GitHub, NixOS Search, Homepage docs, Traefik
+docs, and Technitium GitHub. It does not use service API widgets or mutable UI
+configuration in this pass.
 
 Traefik writes JSON access logs to the `traefik.service` journal. Prometheus
 metrics are exposed on the existing dashboard entrypoint at

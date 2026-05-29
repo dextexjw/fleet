@@ -9,6 +9,7 @@ with lib;
 
 let
   cfg = config.fleet.gateway.homepage;
+  settingsFormat = pkgs.formats.yaml { };
 
   allowedHosts = concatStringsSep "," (
     unique (
@@ -47,6 +48,26 @@ in
   options.fleet.gateway.homepage = {
     enable = mkEnableOption "Homepage dashboard for gateway-vm services";
 
+    bookmarks = mkOption {
+      inherit (settingsFormat) type;
+      default = [ ];
+      description = "Homepage bookmarks configuration.";
+      example = [
+        {
+          Links = [
+            {
+              GitHub = [
+                {
+                  href = "https://github.com/";
+                  icon = "github.png";
+                }
+              ];
+            }
+          ];
+        }
+      ];
+    };
+
     directAddress = mkOption {
       type = types.nullOr types.str;
       default = null;
@@ -72,6 +93,20 @@ in
       default = "_self";
       description = "Browser target used when opening Homepage service card links.";
       example = "_blank";
+    };
+
+    layout = mkOption {
+      inherit (settingsFormat) type;
+      default = { };
+      description = "Homepage layout settings keyed by service or bookmark group name.";
+      example = [
+        {
+          Gateway = {
+            columns = 4;
+            style = "row";
+          };
+        }
+      ];
     };
 
     listenPort = mkOption {
@@ -159,6 +194,7 @@ in
   config = mkIf cfg.enable {
     services.homepage-dashboard = {
       allowedHosts = allowedHosts;
+      bookmarks = cfg.bookmarks;
       customCSS = cfg.customCSS;
       enable = true;
       listenPort = cfg.listenPort;
@@ -168,6 +204,7 @@ in
       settings = {
         description = "Declarative service directory for gateway-vm.";
         disableUpdateCheck = true;
+        layout = cfg.layout;
         target = cfg.linkTarget;
         title = "homepage.h";
       };
